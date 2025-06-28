@@ -1,5 +1,7 @@
 package com.customizedtrends.app.service;
 
+import com.customizedtrends.app.model.Brand;
+import com.customizedtrends.app.model.Color;
 import com.customizedtrends.app.model.Tshirt;
 import com.customizedtrends.app.repository.TshirtRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,5 +56,9 @@ public class TshirtService {
 
     public Page<Tshirt> getAllTshirts(Pageable pageable) {
         return tshirtRepository.findAll(pageable);
+    }
+    
+    public Optional<Tshirt> findByBrandAndColor(Brand brand, Color color) {
+        return tshirtRepository.findByBrandAndColor(brand, color);
     }
 } 

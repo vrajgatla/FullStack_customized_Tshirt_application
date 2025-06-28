@@ -21,6 +21,18 @@ public class Design {
     private byte[] imageData;
     private String imageType;
     private String description;
+    
+    // New fields for compression and thumbnails
+    @Lob
+    private byte[] thumbnailData;
+    private String thumbnailType;
+    private Long originalFileSize;
+    private Long compressedFileSize;
+    private Integer originalWidth;
+    private Integer originalHeight;
+    private Integer compressedWidth;
+    private Integer compressedHeight;
+    private String compressionRatio;
 
     public Design() {}
 
@@ -47,4 +59,24 @@ public class Design {
     public void setImageType(String imageType) { this.imageType = imageType; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    
+    // New getters and setters for compression fields
+    public byte[] getThumbnailData() { return thumbnailData; }
+    public void setThumbnailData(byte[] thumbnailData) { this.thumbnailData = thumbnailData; }
+    public String getThumbnailType() { return thumbnailType; }
+    public void setThumbnailType(String thumbnailType) { this.thumbnailType = thumbnailType; }
+    public Long getOriginalFileSize() { return originalFileSize; }
+    public void setOriginalFileSize(Long originalFileSize) { this.originalFileSize = originalFileSize; }
+    public Long getCompressedFileSize() { return compressedFileSize; }
+    public void setCompressedFileSize(Long compressedFileSize) { this.compressedFileSize = compressedFileSize; }
+    public Integer getOriginalWidth() { return originalWidth; }
+    public void setOriginalWidth(Integer originalWidth) { this.originalWidth = originalWidth; }
+    public Integer getOriginalHeight() { return originalHeight; }
+    public void setOriginalHeight(Integer originalHeight) { this.originalHeight = originalHeight; }
+    public Integer getCompressedWidth() { return compressedWidth; }
+    public void setCompressedWidth(Integer compressedWidth) { this.compressedWidth = compressedWidth; }
+    public Integer getCompressedHeight() { return compressedHeight; }
+    public void setCompressedHeight(Integer compressedHeight) { this.compressedHeight = compressedHeight; }
+    public String getCompressionRatio() { return compressionRatio; }
+    public void setCompressionRatio(String compressionRatio) { this.compressionRatio = compressionRatio; }
 } 

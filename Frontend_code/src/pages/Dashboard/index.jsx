@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -25,6 +25,10 @@ export default function Dashboard() {
         <Link to="/manage-designs" className="flex flex-col items-center justify-center bg-yellow-100 hover:bg-yellow-200 rounded-xl p-6 sm:p-8 shadow transition">
           <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">🖼️</span>
           <span className="text-base sm:text-xl font-semibold text-yellow-800">Manage Designs</span>
+        </Link>
+        <Link to="/manage-designed-tshirts" className="flex flex-col items-center justify-center bg-pink-100 hover:bg-pink-200 rounded-xl p-6 sm:p-8 shadow transition">
+          <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">✨</span>
+          <span className="text-base sm:text-xl font-semibold text-pink-800">Manage Designed T-Shirts</span>
         </Link>
       </div>
     </div>

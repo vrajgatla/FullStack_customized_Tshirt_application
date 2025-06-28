@@ -10,7 +10,6 @@ export default function Footer() {
       <div className="flex flex-wrap gap-6 mb-4 md:mb-0">
         <Link to="/" className="hover:text-blue-600 font-semibold">Home</Link>
         <Link to="/products" className="hover:text-blue-600 font-semibold">Collections</Link>
-        <Link to="/categories" className="hover:text-blue-600 font-semibold">Categories</Link>
         <Link to="/custom-design" className="hover:text-blue-600 font-semibold">Custom Design</Link>
         <Link to="/account" className="hover:text-blue-600 font-semibold">Account</Link>
       </div>

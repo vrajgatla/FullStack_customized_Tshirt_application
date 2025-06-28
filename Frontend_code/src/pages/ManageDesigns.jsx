@@ -99,7 +99,20 @@ export default function ManageDesigns() {
       <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {designs.map(design => (
           <div key={design.id} className="border rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center">
-            <img src={`/api/designs/${design.id}/image`} alt={design.name} className="w-24 h-24 object-contain rounded border mb-2 sm:mb-0" onError={e => e.currentTarget.style.display = 'none'} />
+            <img 
+              src={`/api/designs/${design.id}/thumbnail`} 
+              alt={design.name} 
+              className="w-24 h-24 object-contain rounded border mb-2 sm:mb-0" 
+              onError={(e) => {
+                // If thumbnail fails, try the main image
+                if (e.target.src.includes('/thumbnail')) {
+                  e.target.src = `/api/designs/${design.id}/image`;
+                } else {
+                  // If main image also fails, hide the image
+                  e.currentTarget.style.display = 'none';
+                }
+              }} 
+            />
             <div className="flex-1 w-full">
               <div className="font-bold text-base sm:text-lg">{design.name}</div>
               <div className="text-gray-600 text-xs sm:text-sm">Type: {design.type} | Theme: {design.theme}</div>
@@ -107,6 +120,11 @@ export default function ManageDesigns() {
               <div className="text-gray-600 text-xs sm:text-sm">Uploaded By: {design.uploadedBy}</div>
               <div className="text-gray-600 text-xs sm:text-sm">Date: {design.date}</div>
               <div className="text-gray-600 text-xs sm:text-sm">Description: {design.description}</div>
+              {design.compressionRatio && (
+                <div className="text-green-600 text-xs sm:text-sm font-medium">
+                  Compression: {design.compressionRatio} saved
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2 w-full sm:w-auto">
               <button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 w-full sm:w-auto" onClick={() => startEdit(design)}>Edit</button>

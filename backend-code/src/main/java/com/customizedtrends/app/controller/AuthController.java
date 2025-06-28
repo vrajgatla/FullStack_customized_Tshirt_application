@@ -2,77 +2,158 @@ package com.customizedtrends.app.controller;
 
 import com.customizedtrends.app.model.User;
 import com.customizedtrends.app.service.UserService;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.customizedtrends.app.service.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+@Valid
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
-    private static final String JWT_SECRET = "your_jwt_secret_key"; // Use env var in production
-    private static final long EXPIRATION_TIME = 86400000; // 1 day
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private JwtService jwtService;
+
+    public static class SignupRequest {
+        @NotBlank(message = "Name is required")
+        @Size(min = 2, max = 50, message = "Name must be between 2 and 50 characters")
+        private String name;
+        
+        @NotBlank(message = "Email is required")
+        @Email(message = "Email must be valid")
+        private String email;
+        
+        @NotBlank(message = "Password is required")
+        @Size(min = 6, message = "Password must be at least 6 characters")
+        private String password;
+
+        // Getters and setters
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class LoginRequest {
+        @NotBlank(message = "Name or email is required")
+        private String nameOrEmail;
+        
+        @NotBlank(message = "Password is required")
+        private String password;
+
+        // Getters and setters
+        public String getNameOrEmail() { return nameOrEmail; }
+        public void setNameOrEmail(String nameOrEmail) { this.nameOrEmail = nameOrEmail; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody Map<String, String> body) {
-        String name = body.get("name");
-        String email = body.get("email");
-        String password = body.get("password");
-        if (name == null || email == null || password == null) {
-            return ResponseEntity.badRequest().body("Missing fields");
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request) {
+        try {
+            logger.info("Signup attempt for email: {}", request.getEmail());
+            
+            // Check if user already exists
+            Optional<User> existingUser = userService.findByNameOrEmail(request.getEmail());
+            if (existingUser.isPresent()) {
+                logger.warn("Signup failed: Email already exists: {}", request.getEmail());
+                return ResponseEntity.badRequest().body(Map.of("error", "Email already registered"));
+            }
+            
+            User user = userService.registerUser(request.getName(), request.getEmail(), request.getPassword());
+            logger.info("User registered successfully: {}", user.getEmail());
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "User registered successfully",
+                "id", user.getId(),
+                "name", user.getName(),
+                "email", user.getEmail()
+            ));
+        } catch (Exception e) {
+            logger.error("Signup error: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("error", "Registration failed"));
         }
-        User user = userService.registerUser(name, email, password);
-        return ResponseEntity.ok(user);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
-            logger.info("Login attempt: {}", body);
-            String nameOrEmail = body.get("nameOrEmail");
-            String password = body.get("password");
-            if (nameOrEmail == null || password == null) {
-                logger.warn("Missing fields in login: {}", body);
-                return ResponseEntity.badRequest().body(Map.of("error", "Missing fields: nameOrEmail and password are required."));
-            }
-            Optional<User> userOpt = userService.findByNameOrEmail(nameOrEmail);
-            logger.info("User lookup result for '{}': {}", nameOrEmail, userOpt.isPresent());
+            logger.info("Login attempt for: {}", request.getNameOrEmail());
+            
+            Optional<User> userOpt = userService.findByNameOrEmail(request.getNameOrEmail());
             if (userOpt.isEmpty()) {
-                logger.warn("User not found for: {}", nameOrEmail);
-                return ResponseEntity.status(404).body(Map.of("error", "User not found with given name or email."));
+                logger.warn("Login failed: User not found: {}", request.getNameOrEmail());
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
             }
+            
             User user = userOpt.get();
-            boolean passwordMatch = userService.checkPassword(user, password);
-            logger.info("Password match for '{}': {}", nameOrEmail, passwordMatch);
+            boolean passwordMatch = userService.checkPassword(user, request.getPassword());
             if (!passwordMatch) {
-                logger.warn("Invalid password for user: {}", nameOrEmail);
-                return ResponseEntity.status(401).body(Map.of("error", "Invalid password."));
+                logger.warn("Login failed: Invalid password for user: {}", request.getNameOrEmail());
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
             }
-            logger.info("Creating JWT for user: {}", nameOrEmail);
-            String token = Jwts.builder()
-                    .setSubject(user.getId().toString())
-                    .claim("name", user.getName())
-                    .claim("email", user.getEmail())
-                    .setIssuedAt(new Date())
-                    .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                    .signWith(SignatureAlgorithm.HS256, JWT_SECRET)
-                    .compact();
-            logger.info("Login successful for user: {}", nameOrEmail);
-            return ResponseEntity.ok(Map.of("token", token, "name", user.getName(), "email", user.getEmail()));
+            
+            String token = jwtService.generateToken(user.getId().toString(), user.getRole().toString());
+            logger.info("Login successful for user: {} with role: {}", user.getEmail(), user.getRole());
+            
+            return ResponseEntity.ok(Map.of(
+                "token", token, 
+                "id", user.getId(),
+                "name", user.getName(), 
+                "email", user.getEmail(),
+                "role", user.getRole().toString()
+            ));
         } catch (Exception e) {
             logger.error("Login error: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of("error", "Internal server error: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Login failed"));
+        }
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String authHeader) {
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid authorization header"));
+            }
+            
+            String token = authHeader.substring(7);
+            String userId = jwtService.extractUsername(token);
+            
+            if (!jwtService.validateToken(token, userId)) {
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid or expired token"));
+            }
+            
+            Optional<User> userOpt = userService.findById(Long.parseLong(userId));
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+            }
+            
+            User user = userOpt.get();
+            return ResponseEntity.ok(Map.of(
+                "id", user.getId(),
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "role", user.getRole().toString()
+            ));
+        } catch (Exception e) {
+            logger.error("Profile fetch error: {}", e.getMessage(), e);
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
         }
     }
 } 

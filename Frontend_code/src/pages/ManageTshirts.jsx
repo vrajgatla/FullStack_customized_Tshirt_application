@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import apiService from '../utils/api';
 
 export default function ManageTshirts() {
   const [tshirts, setTshirts] = useState([]);
@@ -197,16 +198,35 @@ export default function ManageTshirts() {
           <div key={tshirt.id} className="border rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center">
             <div className="w-24 h-24 flex items-center justify-center bg-gray-100 rounded border mb-2 sm:mb-0">
               <img 
-                src={`/api/tshirts/${tshirt.id}/image`} 
+                src={apiService.getProductThumbnail(tshirt.id)} 
                 alt={tshirt.name} 
                 className="w-full h-full object-contain"
                 onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
+                  console.warn(`Failed to load thumbnail for t-shirt ${tshirt.id}, trying full image...`);
+                  // Try to load the full image as fallback
+                  e.target.src = apiService.getProductImage(tshirt.id);
+                  e.target.onerror = (e2) => {
+                    console.warn(`Failed to load full image for t-shirt ${tshirt.id}, using default...`);
+                    // If full image also fails, use default placeholder
+                    e2.target.style.display = 'none';
+                    e2.target.nextSibling.style.display = 'flex';
+                  };
+                }}
+                onLoad={() => {
+                  // Hide the placeholder when image loads successfully
+                  const placeholder = e.target.nextSibling;
+                  if (placeholder) {
+                    placeholder.style.display = 'none';
+                  }
                 }}
               />
               <div className="hidden w-full h-full items-center justify-center text-gray-400 text-xs text-center">
-                No Image
+                <div>
+                  <svg className="w-8 h-8 mx-auto mb-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                  </svg>
+                  No Image
+                </div>
               </div>
             </div>
             <div className="flex-1 w-full">
@@ -221,6 +241,11 @@ export default function ManageTshirts() {
               <div className="text-gray-600 text-xs sm:text-sm">Neck: {tshirt.neckType}</div>
               <div className="text-gray-600 text-xs sm:text-sm">Tags: {tshirt.tags}</div>
               <div className="text-gray-600 text-xs sm:text-sm">Description: {tshirt.description}</div>
+              {tshirt.compressionRatio && (
+                <div className="text-green-600 text-xs sm:text-sm font-medium">
+                  Compression: {tshirt.compressionRatio} saved
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2 w-full sm:w-auto">
               <button 
