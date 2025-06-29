@@ -16,6 +16,7 @@ import DesignUpload from './pages/DesignUpload';
 import ManageDesigns from './pages/ManageDesigns';
 import ManageTshirts from './pages/ManageTshirts';
 import ManageDesignedTshirts from './pages/ManageDesignedTshirts';
+import EditDesignedTshirt from './pages/EditDesignedTshirt';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -72,6 +73,7 @@ export default function App() {
                 <Route path="/manage-designs" element={<AdminRoute><ManageDesigns /></AdminRoute>} />
                 <Route path="/manage-tshirts" element={<AdminRoute><ManageTshirts /></AdminRoute>} />
                 <Route path="/manage-designed-tshirts" element={<AdminRoute><ManageDesignedTshirts /></AdminRoute>} />
+                <Route path="/edit-designed-tshirt/:id" element={<AdminRoute><EditDesignedTshirt /></AdminRoute>} />
               </Routes>
             </main>
             <Footer />

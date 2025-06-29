@@ -196,6 +196,11 @@ public class DesignedTshirtService {
         return designedTshirtRepository.findByColor_NameAndIsActiveTrue(colorName);
     }
 
+    // Get designed t-shirts by gender
+    public List<DesignedTshirt> getDesignedTshirtsByGender(String gender) {
+        return designedTshirtRepository.findByGenderAndIsActiveTrue(gender);
+    }
+
     // Get designed t-shirts by brand and color
     public List<DesignedTshirt> getDesignedTshirtsByBrandAndColor(String brandName, String colorName) {
         return designedTshirtRepository.findByBrand_NameAndColor_NameAndIsActiveTrue(brandName, colorName);

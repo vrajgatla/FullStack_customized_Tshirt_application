@@ -18,6 +18,8 @@ export default function CustomDesign() {
   const [brand, setBrand] = useState('');
   const [colors, setColors] = useState([]);
   const [color, setColor] = useState('');
+  const [genders, setGenders] = useState([]);
+  const [gender, setGender] = useState('');
   const [sizes, setSizes] = useState([]);
   const [size, setSize] = useState('');
   const [designs, setDesigns] = useState([]);
@@ -37,13 +39,9 @@ export default function CustomDesign() {
   const previewRef = useRef(null);
 
   useEffect(() => {
-    fetch('/api/brands/used').then(res => res.json()).then(data => {
-      setBrands(data);
-      setBrand(data[0]?.name || '');
-    });
-    fetch('/api/colors/used').then(res => res.json()).then(data => {
-      setColors(data);
-      setColor(data[0]?.name || '');
+    fetch('/api/tshirts/genders').then(res => res.json()).then(data => {
+      setGenders(data);
+      setGender(data[0] || '');
     });
     fetch('/api/tshirts/sizes').then(res => res.json()).then(data => {
       setSizes(data);
@@ -59,6 +57,82 @@ export default function CustomDesign() {
       console.error('Error fetching designs:', error); // Debug log
     });
   }, []);
+
+  // Fetch available brands based on gender selection
+  useEffect(() => {
+    if (gender) {
+      fetch(`/api/tshirts/available-brands?gender=${encodeURIComponent(gender)}`)
+        .then(res => res.json())
+        .then(data => {
+          setBrands(data);
+          // Reset brand if current selection is not available
+          if (data.length > 0 && !data.find(b => b.name === brand)) {
+            setBrand(data[0].name);
+          } else if (data.length === 0) {
+            setBrand('');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching available brands:', error);
+          setBrands([]);
+          setBrand('');
+        });
+    }
+  }, [gender]);
+
+  // Fetch available colors based on brand and gender selection
+  useEffect(() => {
+    if (brand && gender) {
+      fetch(`/api/tshirts/available-colors?brand=${encodeURIComponent(brand)}&gender=${encodeURIComponent(gender)}`)
+        .then(res => res.json())
+        .then(data => {
+          setColors(data);
+          // Reset color if current selection is not available
+          if (data.length > 0 && !data.find(c => c.name === color)) {
+            setColor(data[0].name);
+          } else if (data.length === 0) {
+            setColor('');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching available colors:', error);
+          setColors([]);
+          setColor('');
+        });
+    } else if (brand) {
+      fetch(`/api/tshirts/available-colors?brand=${encodeURIComponent(brand)}`)
+        .then(res => res.json())
+        .then(data => {
+          setColors(data);
+          if (data.length > 0 && !data.find(c => c.name === color)) {
+            setColor(data[0].name);
+          } else if (data.length === 0) {
+            setColor('');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching available colors:', error);
+          setColors([]);
+          setColor('');
+        });
+    } else if (gender) {
+      fetch(`/api/tshirts/available-colors?gender=${encodeURIComponent(gender)}`)
+        .then(res => res.json())
+        .then(data => {
+          setColors(data);
+          if (data.length > 0 && !data.find(c => c.name === color)) {
+            setColor(data[0].name);
+          } else if (data.length === 0) {
+            setColor('');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching available colors:', error);
+          setColors([]);
+          setColor('');
+        });
+    }
+  }, [brand, gender]);
 
   const resetDesignPosition = () => {
     // Position the design in the center of the t-shirt image
@@ -124,14 +198,14 @@ export default function CustomDesign() {
       }
       
       // Load and draw design image
-      if (design) {
+      if (design || upload) {
         const designImage = new Image();
         designImage.crossOrigin = 'anonymous';
         
         await new Promise((resolve, reject) => {
           designImage.onload = resolve;
           designImage.onerror = reject;
-          designImage.src = design;
+          designImage.src = upload || design;
         });
         
         // Calculate design position (using the same logic as the preview)
@@ -162,8 +236,11 @@ export default function CustomDesign() {
     setAddingToCart(true);
     let designName = 'Uploaded Design';
     let designId = 'upload-' + Date.now();
-    if (!upload && design) {
-      const found = designs.find((d) => d.imageUrl === design);
+    if (upload) {
+      designName = 'Uploaded Design';
+      designId = 'upload-' + Date.now();
+    } else if (design) {
+      const found = designs.find((d) => `/api/designs/${d.id}/image` === design);
       if (found) {
         designName = found.name;
         designId = 'gallery-' + found.id;
@@ -180,6 +257,7 @@ export default function CustomDesign() {
     const item = {
       brand,
       color,
+      gender,
       size,
       design: upload || design,
       designName,
@@ -187,7 +265,7 @@ export default function CustomDesign() {
       combinedImage,
       tshirtImg,
       id: Date.now(),
-      name: `${brand} Custom Tee - ${designName}`,
+      name: `${brand} ${gender} Custom Tee - ${designName}`,
       price: 24.99,
     };
     saveToCart(item);
@@ -235,12 +313,12 @@ export default function CustomDesign() {
 
       // Prepare the designed t-shirt data
       const designedTshirtData = {
-        name: `${brand} Custom T-Shirt - ${design ? 'Gallery Design' : 'Custom Upload'}`,
+        name: `${brand} ${gender} Custom T-Shirt - ${design ? 'Gallery Design' : 'Custom Upload'}`,
         brandId: brands.find(b => b.name === brand)?.id,
         colorId: colors.find(c => c.name === color)?.id,
         designId: design ? designs.find(d => `/api/designs/${d.id}/image` === design)?.id : null,
         sizes: [size],
-        gender: 'Unisex',
+        gender: gender,
         material: 'Cotton',
         fit: 'Regular',
         sleeveType: 'Short Sleeve',
@@ -248,8 +326,8 @@ export default function CustomDesign() {
         price: 24.99,
         stock: 100,
         featured: false,
-        tags: `${brand}, ${color}, custom, designed`,
-        description: `Custom designed t-shirt with ${brand} brand in ${color} color`,
+        tags: `${brand}, ${color}, ${gender}, custom, designed`,
+        description: `Custom designed ${gender.toLowerCase()} t-shirt with ${brand} brand in ${color} color`,
         customDesignName: upload ? 'Custom Uploaded Design' : null,
         designZoom: designZoom,
         designPositionX: Math.round(designPos.x),
@@ -270,13 +348,13 @@ export default function CustomDesign() {
     }
   };
 
-  // For t-shirt image, fetch from backend based on brand/color selection
+  // For t-shirt image, fetch from backend based on brand/color/gender selection
   const [tshirtImg, setTshirtImg] = useState('');
   const [tshirtImgError, setTshirtImgError] = useState('');
   useEffect(() => {
-    if (brand && color) {
+    if (brand && color && gender) {
       setTshirtImgError('');
-      fetch(`/api/tshirts/preview?brand=${encodeURIComponent(brand)}&color=${encodeURIComponent(color)}`)
+      fetch(`/api/tshirts/preview?brand=${encodeURIComponent(brand)}&color=${encodeURIComponent(color)}&gender=${encodeURIComponent(gender)}`)
         .then(res => res.json())
         .then(data => {
           console.log('T-shirt preview API response:', data); // Debug log
@@ -285,7 +363,7 @@ export default function CustomDesign() {
             setTshirtImgError('');
           } else {
             setTshirtImg('');
-            setTshirtImgError('No t-shirt image found for the selected brand and color.');
+            setTshirtImgError('No t-shirt image found for the selected brand, color, and gender.');
           }
         })
         .catch((err) => {
@@ -293,8 +371,11 @@ export default function CustomDesign() {
           setTshirtImgError('Error fetching t-shirt image.');
           console.error('Error fetching t-shirt preview:', err);
         });
+    } else {
+      setTshirtImg('');
+      setTshirtImgError('Please select brand, color, and gender to see t-shirt preview.');
     }
-  }, [brand, color]);
+  }, [brand, color, gender]);
 
   // Pagination for gallery
   const itemsPerPage = 30;
@@ -402,10 +483,27 @@ export default function CustomDesign() {
             <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={brand} onChange={e => setBrand(e.target.value)}>
               {brands.map(b => <option key={b.name}>{b.name}</option>)}
             </select>
-            <label className="block mb-3 font-bold text-lg">Select Color:</label>
-            <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={color} onChange={e => setColor(e.target.value)}>
-              {colors.map(c => <option key={c.name}>{c.name}</option>)}
+            
+            <label className="block mb-3 font-bold text-lg">Select Gender:</label>
+            <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={gender} onChange={e => setGender(e.target.value)}>
+              {genders.map(g => <option key={g}>{g}</option>)}
             </select>
+            
+            <label className="block mb-3 font-bold text-lg">Select Color:</label>
+            {colors.length > 0 ? (
+              <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={color} onChange={e => setColor(e.target.value)}>
+                {colors.map(c => (
+                  <option key={c.name} value={c.name}>
+                    {c.name} ✓
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full p-3 border-2 border-red-200 rounded-xl shadow mb-4 font-medium bg-red-50 text-red-600">
+                No colors available for selected brand and gender
+              </div>
+            )}
+            
             <label className="block mb-3 font-bold text-lg">Select Size:</label>
             <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={size} onChange={e => setSize(e.target.value)}>
               {sizes.map(s => <option key={s}>{s}</option>)}
@@ -422,21 +520,23 @@ export default function CustomDesign() {
               ) : (
                 pagedGallery.map((d, idx) => (
                   <div key={idx} className={`border-2 rounded-xl p-2 mb-4 flex flex-col items-center cursor-pointer hover:scale-105 hover:shadow-xl transition-all duration-300 ${design === `/api/designs/${d.id}/image` ? 'ring-2 ring-blue-500' : ''}`} onClick={() => { setDesign(`/api/designs/${d.id}/image`); setUpload(null); resetDesignPosition(); }}>
-                    <img 
-                      src={`/api/designs/${d.id}/thumbnail`} 
-                      alt={d.name} 
-                      className="w-full max-w-xs object-contain rounded mb-2" 
-                      style={{height: 135, background: '#f3f4f6'}} 
-                      onError={(e) => {
-                        // If thumbnail fails, try the main image
-                        if (e.target.src.includes('/thumbnail')) {
-                          e.target.src = `/api/designs/${d.id}/image`;
-                        } else {
-                          // If main image also fails, use placeholder
-                          e.target.src = '/placeholder-design.svg';
-                        }
-                      }} 
-                    />
+                    <div className="w-full h-32 flex items-center justify-center bg-gray-50 rounded mb-2">
+                      <img 
+                        key={`design-${d.id}-thumb`}
+                        src={`/api/designs/${d.id}/thumbnail`} 
+                        alt={d.name} 
+                        className="max-w-full max-h-full object-contain" 
+                        onError={(e) => {
+                          // If thumbnail fails, try the main image
+                          if (e.target.src.includes('/thumbnail')) {
+                            e.target.src = `/api/designs/${d.id}/image`;
+                          } else {
+                            // If main image also fails, use placeholder
+                            e.target.src = '/placeholder-design.svg';
+                          }
+                        }} 
+                      />
+                    </div>
                     <span className="text-base text-gray-700 font-semibold text-center break-words">{d.name}</span>
                     {d.compressionRatio && (
                       <div className="text-xs text-green-600 mt-1">
@@ -470,6 +570,7 @@ export default function CustomDesign() {
             {/* Realistic T-shirt image as background */}
             {tshirtImg ? (
               <img
+                key={tshirtImg}
                 src={tshirtImg}
                 alt="T-shirt preview"
                 className="absolute"
@@ -480,10 +581,11 @@ export default function CustomDesign() {
                   top: 0, 
                   zIndex: 1, 
                   borderRadius: '1rem', 
-                  objectFit: 'cover', 
+                  objectFit: 'contain', 
                   transform: `translateX(-50%) scale(${tshirtZoom})` 
                 }}
                 onError={e => { e.currentTarget.style.display = 'none'; setTshirtImgError('Failed to load t-shirt image.'); }}
+                onLoad={() => setTshirtImgError('')}
               />
             ) : (
               <div className="absolute flex items-center justify-center w-full h-full text-gray-400 text-center z-10" style={{ left: '50%', top: 0, width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT, borderRadius: '1rem', background: '#f3f4f6', transform: 'translateX(-50%)' }}>
@@ -491,9 +593,9 @@ export default function CustomDesign() {
               </div>
             )}
             {/* Overlay design, draggable and zoomable */}
-            {design && (
+            {(design || upload) && (
               <img
-                src={design}
+                src={upload || design}
                 alt="Design preview"
                 className="absolute cursor-move"
                 style={{

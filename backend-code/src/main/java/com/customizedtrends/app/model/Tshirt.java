@@ -1,6 +1,7 @@
 package com.customizedtrends.app.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -44,8 +45,13 @@ public class Tshirt {
     private Integer compressedWidth;
     private Integer compressedHeight;
     private String compressionRatio;
+    
+    // Created date field
+    private LocalDateTime createdAt;
 
-    public Tshirt() {}
+    public Tshirt() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     // Getters and setters
     public Long getId() { return id; }
@@ -102,4 +108,8 @@ public class Tshirt {
     public void setCompressedHeight(Integer compressedHeight) { this.compressedHeight = compressedHeight; }
     public String getCompressionRatio() { return compressionRatio; }
     public void setCompressionRatio(String compressionRatio) { this.compressionRatio = compressionRatio; }
+    
+    // Created date getter and setter
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 } 

@@ -61,4 +61,56 @@ public class TshirtService {
     public Optional<Tshirt> findByBrandAndColor(Brand brand, Color color) {
         return tshirtRepository.findByBrandAndColor(brand, color);
     }
+    
+    public Optional<Tshirt> findByBrandColorAndGender(Brand brand, Color color, String gender) {
+        return tshirtRepository.findByBrandAndColorAndGender(brand, color, gender);
+    }
+    
+    public Page<Tshirt> searchTshirts(String query, Pageable pageable) {
+        return tshirtRepository.searchTshirts(query, pageable);
+    }
+    
+    public Page<Tshirt> filterTshirts(String brand, String color, String gender, Pageable pageable) {
+        return tshirtRepository.filterTshirts(brand, color, gender, pageable);
+    }
+    
+    public Page<Tshirt> getTshirtsWithFilters(String search, String brand, String color, String gender, Pageable pageable) {
+        if (!search.isEmpty()) {
+            return searchTshirts(search, pageable);
+        } else if (!brand.isEmpty() || !color.isEmpty() || !gender.isEmpty()) {
+            return filterTshirts(brand, color, gender, pageable);
+        } else {
+            return getAllTshirts(pageable);
+        }
+    }
+
+    // Get available colors for a specific brand
+    public List<Color> getAvailableColorsByBrand(String brandName) {
+        return tshirtRepository.findAvailableColorsByBrand(brandName);
+    }
+
+    // Get available colors for a specific gender
+    public List<Color> getAvailableColorsByGender(String gender) {
+        return tshirtRepository.findAvailableColorsByGender(gender);
+    }
+
+    // Get available colors for a specific brand and gender combination
+    public List<Color> getAvailableColorsByBrandAndGender(String brandName, String gender) {
+        return tshirtRepository.findAvailableColorsByBrandAndGender(brandName, gender);
+    }
+
+    // Get all colors that have t-shirts
+    public List<Color> getAllAvailableColors() {
+        return tshirtRepository.findAllAvailableColors();
+    }
+
+    // Get available brands for a specific gender
+    public List<Brand> getAvailableBrandsByGender(String gender) {
+        return tshirtRepository.findAvailableBrandsByGender(gender);
+    }
+
+    // Get all brands that have t-shirts
+    public List<Brand> getAllAvailableBrands() {
+        return tshirtRepository.findAllAvailableBrands();
+    }
 } 

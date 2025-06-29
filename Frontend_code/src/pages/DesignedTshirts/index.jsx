@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { FaShoppingCart, FaEye } from 'react-icons/fa';
@@ -7,25 +7,44 @@ import { FaShoppingCart, FaEye } from 'react-icons/fa';
 export default function DesignedTshirts() {
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [designedTshirts, setDesignedTshirts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  const [selectedGender, setSelectedGender] = useState('');
   const [brands, setBrands] = useState([]);
   const [colors, setColors] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
+  // Initialize filters from URL on mount and when URL changes
+  useEffect(() => {
+    const genderFromUrl = searchParams.get('gender') || '';
+    const brandFromUrl = searchParams.get('brand') || '';
+    const colorFromUrl = searchParams.get('color') || '';
+    const searchFromUrl = searchParams.get('search') || '';
+    const pageFromUrl = searchParams.get('page');
+    
+    // Update state
+    setSelectedGender(genderFromUrl);
+    setSelectedBrand(brandFromUrl);
+    setSelectedColor(colorFromUrl);
+    setSearchTerm(searchFromUrl);
+    if (pageFromUrl) setCurrentPage(parseInt(pageFromUrl));
+  }, [searchParams]); // React to URL changes
+
   useEffect(() => {
     fetchBrands();
     fetchColors();
   }, []);
 
+  // Fetch data when filters change
   useEffect(() => {
     fetchDesignedTshirts();
-  }, [currentPage, searchTerm, selectedBrand, selectedColor]);
+  }, [currentPage, searchTerm, selectedBrand, selectedColor, selectedGender]);
 
   const fetchBrands = async () => {
     try {
@@ -54,16 +73,25 @@ export default function DesignedTshirts() {
   const fetchDesignedTshirts = async () => {
     setLoading(true);
     try {
+      // Get current URL parameters directly instead of relying on state
+      const currentGender = searchParams.get('gender') || selectedGender;
+      const currentBrand = searchParams.get('brand') || selectedBrand;
+      const currentColor = searchParams.get('color') || selectedColor;
+      const currentSearch = searchParams.get('search') || searchTerm;
+      
       let url = `/api/designed-tshirts/page?page=${currentPage}&size=12`;
       
-      if (searchTerm) {
-        url += `&search=${encodeURIComponent(searchTerm)}`;
+      if (currentSearch) {
+        url += `&search=${encodeURIComponent(currentSearch)}`;
       }
-      if (selectedBrand) {
-        url += `&brand=${encodeURIComponent(selectedBrand)}`;
+      if (currentBrand) {
+        url += `&brand=${encodeURIComponent(currentBrand)}`;
       }
-      if (selectedColor) {
-        url += `&color=${encodeURIComponent(selectedColor)}`;
+      if (currentColor) {
+        url += `&color=${encodeURIComponent(currentColor)}`;
+      }
+      if (currentGender) {
+        url += `&gender=${encodeURIComponent(currentGender)}`;
       }
 
       const response = await fetch(url);
@@ -92,6 +120,7 @@ export default function DesignedTshirts() {
     setSearchTerm('');
     setSelectedBrand('');
     setSelectedColor('');
+    setSelectedGender('');
     setCurrentPage(0);
   };
 
@@ -107,9 +136,9 @@ export default function DesignedTshirts() {
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
           <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* Search */}
-              <div className="md:col-span-2">
+              <div>
                 <input
                   type="text"
                   placeholder="Search designed t-shirts..."
@@ -148,6 +177,20 @@ export default function DesignedTshirts() {
                       {color.name}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              {/* Gender Filter */}
+              <div>
+                <select
+                  value={selectedGender}
+                  onChange={(e) => setSelectedGender(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Genders</option>
+                  <option value="Men">Men</option>
+                  <option value="Women">Women</option>
+                  <option value="Children">Children</option>
                 </select>
               </div>
             </div>
@@ -204,14 +247,16 @@ export default function DesignedTshirts() {
               <div key={designedTshirt.id} className="bg-white rounded-2xl shadow-xl overflow-hidden hover:scale-105 transition-all duration-300">
                 {/* Image */}
                 <div className="relative">
-                  <img
-                    src={`/api/designed-tshirts/${designedTshirt.id}/image`}
-                    alt={designedTshirt.name}
-                    className="w-full h-64 object-cover"
-                    onError={e => {
-                      e.currentTarget.src = '/placeholder-design.svg';
-                    }}
-                  />
+                  <div className="aspect-square w-full">
+                    <img
+                      src={`/api/designed-tshirts/${designedTshirt.id}/image`}
+                      alt={designedTshirt.name}
+                      className="w-full h-full object-contain bg-gray-50"
+                      onError={e => {
+                        e.currentTarget.src = '/placeholder-design.svg';
+                      }}
+                    />
+                  </div>
                   {designedTshirt.featured && (
                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-semibold">
                       Featured

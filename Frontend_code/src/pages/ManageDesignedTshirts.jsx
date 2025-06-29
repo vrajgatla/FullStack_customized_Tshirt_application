@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../utils/api';
-import { FaEdit, FaTrash, FaEye, FaDownload, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaDownload, FaPlus, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const ManageDesignedTshirts = () => {
   const { user, token } = useAuth();
@@ -11,8 +12,12 @@ const ManageDesignedTshirts = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [pageSize] = useState(10);
   const [selectedTshirt, setSelectedTshirt] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [imageLoadingStates, setImageLoadingStates] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user && user.role === 'ADMIN') {
@@ -23,23 +28,27 @@ const ManageDesignedTshirts = () => {
   const loadDesignedTshirts = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       let response;
       
       if (searchQuery.trim()) {
-        response = await apiService.searchDesignedTshirts(searchQuery, currentPage, 10, token);
+        response = await apiService.searchDesignedTshirts(searchQuery, currentPage, pageSize, token);
       } else {
-        response = await apiService.getDesignedTshirts({ page: currentPage, size: 10 }, token);
+        response = await apiService.getDesignedTshirts({ page: currentPage, size: pageSize }, token);
       }
       
       if (response.content) {
         setDesignedTshirts(response.content);
         setTotalPages(response.totalPages);
+        setTotalElements(response.totalElements);
       } else {
         setDesignedTshirts(response);
         setTotalPages(1);
+        setTotalElements(response.length || 0);
       }
     } catch (err) {
-      setError('Failed to load designed t-shirts');
+      setError('Failed to load designed t-shirts: ' + (err.message || 'Unknown error'));
       console.error('Error loading designed t-shirts:', err);
     } finally {
       setLoading(false);
@@ -50,9 +59,10 @@ const ManageDesignedTshirts = () => {
     if (window.confirm('Are you sure you want to delete this designed t-shirt?')) {
       try {
         await apiService.deleteDesignedTshirt(id, token);
-        setDesignedTshirts(designedTshirts.filter(tshirt => tshirt.id !== id));
+        // Reload the current page to refresh the data
+        await loadDesignedTshirts();
       } catch (err) {
-        setError('Failed to delete designed t-shirt');
+        setError('Failed to delete designed t-shirt: ' + (err.message || 'Unknown error'));
         console.error('Error deleting designed t-shirt:', err);
       }
     }
@@ -85,6 +95,120 @@ const ManageDesignedTshirts = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const handleImageLoad = (tshirtId) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [tshirtId]: { loading: false, error: false }
+    }));
+  };
+
+  const handleImageError = (tshirtId, fallbackUrl) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [tshirtId]: { loading: false, error: true, fallbackUrl }
+    }));
+  };
+
+  const getImageUrl = (tshirtId) => {
+    const state = imageLoadingStates[tshirtId];
+    if (state?.error && state.fallbackUrl) {
+      return state.fallbackUrl;
+    }
+    return apiService.getDesignedTshirtThumbnail(tshirtId);
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    // Reset image loading states for new page
+    setImageLoadingStates({});
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(0); // Reset to first page when searching
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const startPage = Math.max(0, currentPage - 2);
+    const endPage = Math.min(totalPages - 1, currentPage + 2);
+    const pages = [];
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6 rounded-lg shadow">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => handlePageChange(Math.max(0, currentPage - 1))}
+            disabled={currentPage === 0}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FaChevronLeft className="h-4 w-4" />
+            Previous
+          </button>
+          <button
+            onClick={() => handlePageChange(Math.min(totalPages - 1, currentPage + 1))}
+            disabled={currentPage === totalPages - 1}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+            <FaChevronRight className="h-4 w-4 ml-1" />
+          </button>
+        </div>
+        
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{currentPage * pageSize + 1}</span> to{' '}
+              <span className="font-medium">
+                {Math.min((currentPage + 1) * pageSize, totalElements)}
+              </span>{' '}
+              of <span className="font-medium">{totalElements}</span> results
+            </p>
+          </div>
+          
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                onClick={() => handlePageChange(Math.max(0, currentPage - 1))}
+                disabled={currentPage === 0}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaChevronLeft className="h-4 w-4" />
+              </button>
+              
+              {pages.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    page === currentPage
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {page + 1}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(Math.min(totalPages - 1, currentPage + 1))}
+                disabled={currentPage === totalPages - 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaChevronRight className="h-4 w-4" />
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!user || user.role !== 'ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -112,12 +236,12 @@ const ManageDesignedTshirts = () => {
                 type="text"
                 placeholder="Search designed t-shirts..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearch}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <button
-              onClick={() => window.location.href = '/design-upload'}
+              onClick={() => navigate('/design-upload')}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
             >
               <FaPlus /> Create New Design
@@ -183,40 +307,36 @@ const ManageDesignedTshirts = () => {
                       <tr key={tshirt.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="relative h-12 w-12">
+                            {/* Loading state */}
+                            {(!imageLoadingStates[tshirt.id] || imageLoadingStates[tshirt.id].loading) && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                              </div>
+                            )}
+                            
+                            {/* Image */}
                             <img
-                              src={apiService.getDesignedTshirtThumbnail(tshirt.id)}
+                              src={getImageUrl(tshirt.id)}
                               alt={tshirt.name}
                               className="h-12 w-12 rounded-lg object-cover"
-                              onError={(e) => {
-                                console.warn(`Failed to load thumbnail for designed t-shirt ${tshirt.id}:`, e.target.src);
-                                // Try to load the full image as fallback
-                                if (e.target.src.includes('/thumbnail')) {
-                                  e.target.src = apiService.getDesignedTshirtImage(tshirt.id);
-                                } else {
-                                  // If full image also fails, show placeholder
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }
+                              onLoad={() => handleImageLoad(tshirt.id)}
+                              onError={() => {
+                                const fallbackUrl = apiService.getDesignedTshirtImage(tshirt.id);
+                                handleImageError(tshirt.id, fallbackUrl);
                               }}
-                              onLoad={() => {
-                                console.log(`Successfully loaded thumbnail for designed t-shirt ${tshirt.id}`);
-                                // Hide loading state
-                                const loadingDiv = e.target.previousSibling;
-                                if (loadingDiv) {
-                                  loadingDiv.style.display = 'none';
-                                }
+                              style={{
+                                display: (!imageLoadingStates[tshirt.id] || imageLoadingStates[tshirt.id].loading) ? 'none' : 'block'
                               }}
                             />
-                            {/* Loading state */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            </div>
+                            
                             {/* Fallback placeholder */}
-                            <div className="hidden absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                              <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                              </svg>
-                            </div>
+                            {imageLoadingStates[tshirt.id]?.error && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                                <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -263,7 +383,7 @@ const ManageDesignedTshirts = () => {
                               <FaDownload />
                             </button>
                             <button
-                              onClick={() => window.location.href = `/edit-designed-tshirt/${tshirt.id}`}
+                              onClick={() => navigate(`/edit-designed-tshirt/${tshirt.id}`)}
                               className="text-yellow-600 hover:text-yellow-900"
                               title="Edit"
                             >
@@ -296,7 +416,7 @@ const ManageDesignedTshirts = () => {
                   </p>
                   {!searchQuery && (
                     <button
-                      onClick={() => window.location.href = '/design-upload'}
+                      onClick={() => navigate('/design-upload')}
                       className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                     >
                       Create First Design
@@ -307,52 +427,7 @@ const ManageDesignedTshirts = () => {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6 rounded-lg shadow">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                    disabled={currentPage === 0}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                    disabled={currentPage === totalPages - 1}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Showing page <span className="font-medium">{currentPage + 1}</span> of{' '}
-                      <span className="font-medium">{totalPages}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                        disabled={currentPage === 0}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                        disabled={currentPage === totalPages - 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            )}
+            {renderPagination()}
           </>
         )}
 
@@ -372,20 +447,22 @@ const ManageDesignedTshirts = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <img
-                      src={apiService.getDesignedTshirtImage(selectedTshirt.id)}
-                      alt={selectedTshirt.name}
-                      className="w-full rounded-lg"
-                      onError={(e) => {
-                        console.warn(`Failed to load full image for designed t-shirt ${selectedTshirt.id}:`, e.target.src);
-                        e.target.src = '/default-tshirt.svg';
-                        e.target.onerror = null;
-                      }}
-                      onLoad={() => {
-                        console.log(`Successfully loaded full image for designed t-shirt ${selectedTshirt.id}`);
-                      }}
-                    />
+                  <div className="flex flex-col">
+                    <div className="relative w-full aspect-square max-h-80 mb-4">
+                      <img
+                        src={apiService.getDesignedTshirtImage(selectedTshirt.id)}
+                        alt={selectedTshirt.name}
+                        className="w-full h-full object-contain rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          console.warn(`Failed to load full image for designed t-shirt ${selectedTshirt.id}:`, e.target.src);
+                          e.target.src = '/default-tshirt.svg';
+                          e.target.onerror = null;
+                        }}
+                        onLoad={() => {
+                          console.log(`Successfully loaded full image for designed t-shirt ${selectedTshirt.id}`);
+                        }}
+                      />
+                    </div>
                   </div>
                   
                   <div className="space-y-4">
@@ -442,7 +519,7 @@ const ManageDesignedTshirts = () => {
                       <button
                         onClick={() => {
                           setShowModal(false);
-                          window.location.href = `/edit-designed-tshirt/${selectedTshirt.id}`;
+                          navigate(`/edit-designed-tshirt/${selectedTshirt.id}`);
                         }}
                         className="flex-1 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700"
                       >

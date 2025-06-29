@@ -71,6 +71,31 @@ export const createImagePreview = (file) => {
   return URL.createObjectURL(file);
 };
 
+// Utility function to create a stable image URL with cache busting
+export const createStableImageUrl = (baseUrl, id, timestamp = null) => {
+  if (!baseUrl || !id) return '';
+  
+  // Add a cache parameter to help with caching
+  const cacheParam = timestamp ? `?t=${timestamp}` : `?v=${id}`;
+  return `${baseUrl}${cacheParam}`;
+};
+
+// Utility function to preload images
+export const preloadImage = (src) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+};
+
+// Utility function to batch preload images
+export const preloadImages = async (imageUrls) => {
+  const promises = imageUrls.map(url => preloadImage(url).catch(() => null));
+  return Promise.all(promises);
+};
+
 export const downloadImage = (dataUrl, filename) => {
   const link = document.createElement('a');
   link.href = dataUrl;

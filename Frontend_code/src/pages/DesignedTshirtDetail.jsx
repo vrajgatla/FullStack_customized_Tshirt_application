@@ -122,14 +122,16 @@ export default function DesignedTshirtDetail() {
           {/* Image Section */}
           <div className="space-y-4">
             <div className="bg-white rounded-2xl shadow-xl p-6">
-              <img 
-                src={`/api/designed-tshirts/${designedTshirt.id}/image`} 
-                alt={designedTshirt.name}
-                className="w-full h-96 object-cover rounded-xl shadow-lg"
-                onError={e => {
-                  e.currentTarget.src = '/placeholder-design.svg';
-                }}
-              />
+              <div className="relative w-full aspect-square max-h-96">
+                <img 
+                  src={`/api/designed-tshirts/${designedTshirt.id}/image`} 
+                  alt={designedTshirt.name}
+                  className="w-full h-full object-contain rounded-xl shadow-lg"
+                  onError={e => {
+                    e.currentTarget.src = '/placeholder-design.svg';
+                  }}
+                />
+              </div>
             </div>
             
             {/* Action Buttons */}
@@ -147,7 +149,7 @@ export default function DesignedTshirtDetail() {
               </button>
               {user?.role === 'ADMIN' && (
                 <Link
-                  to={`/manage-designed-tshirts/edit/${designedTshirt.id}`}
+                  to={`/edit-designed-tshirt/${designedTshirt.id}`}
                   className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 px-6 rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-lg text-center"
                 >
                   Edit Design

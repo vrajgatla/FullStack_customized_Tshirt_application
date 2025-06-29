@@ -36,6 +36,9 @@ public interface DesignedTshirtRepository extends JpaRepository<DesignedTshirt, 
     // Find by brand and color
     List<DesignedTshirt> findByBrand_NameAndColor_NameAndIsActiveTrue(String brandName, String colorName);
     
+    // Find by gender
+    List<DesignedTshirt> findByGenderAndIsActiveTrue(String gender);
+    
     // Find by created by (admin)
     List<DesignedTshirt> findByCreatedByAndIsActiveTrue(String createdBy);
     

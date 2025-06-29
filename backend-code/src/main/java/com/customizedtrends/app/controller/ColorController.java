@@ -58,7 +58,7 @@ public class ColorController {
     @GetMapping("/categories")
     public List<String> getCategories() {
         // This is a stub. Replace with real category logic if you have a Category entity.
-        return java.util.List.of("Men", "Women", "Kids", "Sports", "Trendy");
+        return java.util.List.of("Men", "Women", "Children", "Sports", "Trendy");
     }
 
     @GetMapping("/used")

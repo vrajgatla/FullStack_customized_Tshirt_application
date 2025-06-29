@@ -98,6 +98,12 @@ public class DesignController {
                 .map(d -> {
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.parseMediaType(d.getImageType() != null ? d.getImageType() : "image/png"));
+                    
+                    // Add cache headers for design images
+                    headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
+                    headers.setETag("\"design-" + id + "-" + d.getCompressedFileSize() + "\"");
+                    headers.setLastModified(java.time.Instant.now()); // Use current time since Design has no timestamp
+                    
                     return new ResponseEntity<>(d.getImageData(), headers, org.springframework.http.HttpStatus.OK);
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -110,6 +116,12 @@ public class DesignController {
                 .map(d -> {
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.parseMediaType(d.getThumbnailType() != null ? d.getThumbnailType() : "image/jpeg"));
+                    
+                    // Add cache headers for design thumbnails
+                    headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
+                    headers.setETag("\"design-thumb-" + id + "-" + (d.getThumbnailData() != null ? d.getThumbnailData().length : 0) + "\"");
+                    headers.setLastModified(java.time.Instant.now()); // Use current time since Design has no timestamp
+                    
                     return new ResponseEntity<>(d.getThumbnailData(), headers, org.springframework.http.HttpStatus.OK);
                 })
                 .orElse(ResponseEntity.notFound().build());

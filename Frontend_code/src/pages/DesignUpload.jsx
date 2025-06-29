@@ -139,7 +139,7 @@ export default function DesignUpload() {
         <SelectWithCustom label="Theme/Occasion" name="theme" options={themes} form={form} setForm={setForm} />
         <div>
           <label className="block font-semibold mb-1">Tags (comma separated)</label>
-          <input name="tags" value={form.tags} onChange={handleChange} className="w-full p-2 border rounded" placeholder="e.g. sun, cartoon, kids" />
+          <input name="tags" value={form.tags} onChange={handleChange} className="w-full p-2 border rounded" placeholder="e.g. sun, cartoon, children" />
         </div>
         <div>
           <label className="block font-semibold mb-1">Uploaded By</label>

@@ -119,7 +119,13 @@ class ApiService {
   // Designed T-shirt endpoints
   async getDesignedTshirts(params = {}, token) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/designed-tshirts${queryString ? `?${queryString}` : ''}`, {
+    return this.request(`/designed-tshirts/page${queryString ? `?${queryString}` : ''}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    });
+  }
+
+  async getAllDesignedTshirts(token) {
+    return this.request('/designed-tshirts', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {},
     });
   }

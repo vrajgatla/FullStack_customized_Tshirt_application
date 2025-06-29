@@ -121,7 +121,9 @@ public class DesignedTshirtController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "") String brand,
-            @RequestParam(defaultValue = "") String color) {
+            @RequestParam(defaultValue = "") String color,
+            @RequestParam(defaultValue = "") String gender) {
+        
         Pageable pageable = PageRequest.of(page, size);
         
         Page<DesignedTshirt> designedTshirts;
@@ -129,10 +131,49 @@ public class DesignedTshirtController {
         if (!search.isEmpty()) {
             // If search is provided, use search method
             designedTshirts = designedTshirtService.searchDesignedTshirts(search, pageable);
+        } else if (!brand.isEmpty() && !color.isEmpty() && !gender.isEmpty()) {
+            // If brand, color, and gender are provided
+            List<DesignedTshirt> filteredList = designedTshirtService.getDesignedTshirtsByBrandAndColor(brand, color);
+            // Filter by gender as well
+            filteredList = filteredList.stream()
+                .filter(dt -> dt.getGender() != null && dt.getGender().equals(gender))
+                .toList();
+            designedTshirts = new org.springframework.data.domain.PageImpl<>(
+                filteredList.subList(Math.min(page * size, filteredList.size()), 
+                                   Math.min((page + 1) * size, filteredList.size())),
+                pageable,
+                filteredList.size()
+            );
         } else if (!brand.isEmpty() && !color.isEmpty()) {
             // If both brand and color are provided
             List<DesignedTshirt> filteredList = designedTshirtService.getDesignedTshirtsByBrandAndColor(brand, color);
             // Convert List to Page manually (this is a simplified approach)
+            designedTshirts = new org.springframework.data.domain.PageImpl<>(
+                filteredList.subList(Math.min(page * size, filteredList.size()), 
+                                   Math.min((page + 1) * size, filteredList.size())),
+                pageable,
+                filteredList.size()
+            );
+        } else if (!brand.isEmpty() && !gender.isEmpty()) {
+            // If brand and gender are provided
+            List<DesignedTshirt> filteredList = designedTshirtService.getDesignedTshirtsByBrand(brand);
+            // Filter by gender as well
+            filteredList = filteredList.stream()
+                .filter(dt -> dt.getGender() != null && dt.getGender().equals(gender))
+                .toList();
+            designedTshirts = new org.springframework.data.domain.PageImpl<>(
+                filteredList.subList(Math.min(page * size, filteredList.size()), 
+                                   Math.min((page + 1) * size, filteredList.size())),
+                pageable,
+                filteredList.size()
+            );
+        } else if (!color.isEmpty() && !gender.isEmpty()) {
+            // If color and gender are provided
+            List<DesignedTshirt> filteredList = designedTshirtService.getDesignedTshirtsByColor(color);
+            // Filter by gender as well
+            filteredList = filteredList.stream()
+                .filter(dt -> dt.getGender() != null && dt.getGender().equals(gender))
+                .toList();
             designedTshirts = new org.springframework.data.domain.PageImpl<>(
                 filteredList.subList(Math.min(page * size, filteredList.size()), 
                                    Math.min((page + 1) * size, filteredList.size())),
@@ -151,6 +192,15 @@ public class DesignedTshirtController {
         } else if (!color.isEmpty()) {
             // If only color is provided
             List<DesignedTshirt> filteredList = designedTshirtService.getDesignedTshirtsByColor(color);
+            designedTshirts = new org.springframework.data.domain.PageImpl<>(
+                filteredList.subList(Math.min(page * size, filteredList.size()), 
+                                   Math.min((page + 1) * size, filteredList.size())),
+                pageable,
+                filteredList.size()
+            );
+        } else if (!gender.isEmpty()) {
+            // If only gender is provided
+            List<DesignedTshirt> filteredList = designedTshirtService.getDesignedTshirtsByGender(gender);
             designedTshirts = new org.springframework.data.domain.PageImpl<>(
                 filteredList.subList(Math.min(page * size, filteredList.size()), 
                                    Math.min((page + 1) * size, filteredList.size())),
@@ -278,6 +328,13 @@ public class DesignedTshirtController {
         return ResponseEntity.ok(designedTshirts);
     }
 
+    // Get designed t-shirts by gender
+    @GetMapping("/gender/{gender}")
+    public ResponseEntity<List<DesignedTshirt>> getDesignedTshirtsByGender(@PathVariable String gender) {
+        List<DesignedTshirt> designedTshirts = designedTshirtService.getDesignedTshirtsByGender(gender);
+        return ResponseEntity.ok(designedTshirts);
+    }
+
     // Get designed t-shirts by admin
     @GetMapping("/admin/{adminUsername}")
     public ResponseEntity<List<DesignedTshirt>> getDesignedTshirtsByAdmin(@PathVariable String adminUsername) {
@@ -292,6 +349,12 @@ public class DesignedTshirtController {
         if (designedTshirt.isPresent() && designedTshirt.get().getImageData() != null) {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(designedTshirt.get().getImageType()));
+            
+            // Add cache headers for designed t-shirt images
+            headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
+            headers.setETag("\"designed-" + id + "-" + designedTshirt.get().getCompressedFileSize() + "\"");
+            headers.setLastModified(designedTshirt.get().getCreatedAt() != null ? designedTshirt.get().getCreatedAt().toInstant(java.time.ZoneOffset.UTC) : java.time.Instant.now());
+            
             return new ResponseEntity<>(designedTshirt.get().getImageData(), headers, HttpStatus.OK);
         } else {
             return ResponseEntity.notFound().build();
@@ -305,6 +368,12 @@ public class DesignedTshirtController {
         if (designedTshirt.isPresent() && designedTshirt.get().getThumbnailData() != null) {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(designedTshirt.get().getThumbnailType()));
+            
+            // Add cache headers for designed t-shirt thumbnails
+            headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
+            headers.setETag("\"designed-thumb-" + id + "-" + (designedTshirt.get().getThumbnailData() != null ? designedTshirt.get().getThumbnailData().length : 0) + "\"");
+            headers.setLastModified(designedTshirt.get().getCreatedAt() != null ? designedTshirt.get().getCreatedAt().toInstant(java.time.ZoneOffset.UTC) : java.time.Instant.now());
+            
             return new ResponseEntity<>(designedTshirt.get().getThumbnailData(), headers, HttpStatus.OK);
         } else {
             return ResponseEntity.notFound().build();

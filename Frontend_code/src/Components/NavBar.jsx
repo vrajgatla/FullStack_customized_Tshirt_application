@@ -5,7 +5,7 @@ import { useCart } from '../contexts/CartContext';
 
 const navLinks = [
   { to: '/', label: 'Home' },
-  { to: '/products', label: '🔥 Shop Now' },
+  { to: '/products', label: 'Available Collection' },
   { to: '/designed-tshirts', label: 'Designed T-Shirts' },
   { to: '/custom-design', label: 'Custom Design' },
 ];
