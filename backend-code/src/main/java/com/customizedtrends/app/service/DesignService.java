@@ -36,9 +36,13 @@ public class DesignService {
                 design.setTags(updatedDesign.getTags());
                 design.setUploadedBy(updatedDesign.getUploadedBy());
                 design.setDate(updatedDesign.getDate());
-                design.setImageData(updatedDesign.getImageData());
+                design.setImageUrl(updatedDesign.getImageUrl());
+                design.setThumbnailUrl(updatedDesign.getThumbnailUrl());
+                design.setOptimizedUrl(updatedDesign.getOptimizedUrl());
                 design.setImageType(updatedDesign.getImageType());
                 design.setDescription(updatedDesign.getDescription());
+                design.setCloudinaryPublicId(updatedDesign.getCloudinaryPublicId());
+                design.setCloudinaryVersion(updatedDesign.getCloudinaryVersion());
                 return designRepository.save(design);
             })
             .orElseThrow(() -> new RuntimeException("Design not found"));

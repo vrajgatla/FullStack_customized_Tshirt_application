@@ -45,6 +45,14 @@ public class TshirtService {
                 tshirt.setFeatured(updatedTshirt.getFeatured());
                 tshirt.setTags(updatedTshirt.getTags());
                 tshirt.setDescription(updatedTshirt.getDescription());
+                tshirt.setName(updatedTshirt.getName());
+                
+                // Update Cloudinary URLs
+                tshirt.setImageUrl(updatedTshirt.getImageUrl());
+                tshirt.setThumbnailUrl(updatedTshirt.getThumbnailUrl());
+                tshirt.setOptimizedUrl(updatedTshirt.getOptimizedUrl());
+                tshirt.setImageType(updatedTshirt.getImageType());
+                
                 return tshirtRepository.save(tshirt);
             })
             .orElseThrow(() -> new RuntimeException("Tshirt not found"));
@@ -112,5 +120,9 @@ public class TshirtService {
     // Get all brands that have t-shirts
     public List<Brand> getAllAvailableBrands() {
         return tshirtRepository.findAllAvailableBrands();
+    }
+
+    public List<Tshirt> findAllByBrandColorGender(String brand, String color, String gender) {
+        return tshirtRepository.findAllByBrandNameAndColorNameAndGender(brand, color, gender);
     }
 } 

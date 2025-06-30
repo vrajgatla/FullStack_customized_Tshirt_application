@@ -548,12 +548,10 @@ export default function EditDesignedTshirt() {
                     </label>
                     <div className="w-48 h-48 border rounded-lg overflow-hidden bg-gray-50">
                       <img
-                        src={apiService.getDesignedTshirtImage(id)}
+                        src={designedTshirt.imageUrl || '/default-tshirt.svg'}
                         alt={designedTshirt.name}
                         className="w-full h-full object-contain"
-                        onError={(e) => {
-                          e.target.src = '/default-tshirt.svg';
-                        }}
+                        onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
                       />
                     </div>
                   </div>

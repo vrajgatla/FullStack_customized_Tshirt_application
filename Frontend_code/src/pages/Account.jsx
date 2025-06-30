@@ -26,9 +26,14 @@ export default function Account() {
         {/* Profile Information */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
+            {user && (
+              <img
+                src={user.imageUrl || '/default-tshirt.svg'}
+                alt={user.name}
+                className="w-24 h-24 object-contain rounded-full border"
+                onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
+              />
+            )}
             <div>
               <h2 className="text-xl font-semibold text-gray-800">{user?.name}</h2>
               <p className="text-gray-600">{user?.email}</p>

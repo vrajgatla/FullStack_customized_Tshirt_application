@@ -7,24 +7,20 @@ import com.customizedtrends.app.dto.TshirtUploadDTO;
 import com.customizedtrends.app.service.BrandService;
 import com.customizedtrends.app.service.ColorService;
 import com.customizedtrends.app.service.TshirtService;
-import com.customizedtrends.app.service.ImageCompressionService;
+import com.customizedtrends.app.service.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
-import javax.imageio.ImageIO;
+import java.util.Map;
 import java.util.Optional;
 
 @CrossOrigin(origins = "http://localhost:5173")
@@ -41,14 +37,14 @@ public class TshirtController {
     private ColorService colorService;
     
     @Autowired
-    private ImageCompressionService imageCompressionService;
+    private CloudinaryService cloudinaryService;
 
     @GetMapping
     public Page<Tshirt> getAllTshirts(Pageable pageable) {
         return tshirtService.getAllTshirts(pageable);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/id/{id}")
     public ResponseEntity<Tshirt> getTshirtById(@PathVariable Long id) {
         return tshirtService.getTshirtById(id)
                 .map(ResponseEntity::ok)
@@ -76,186 +72,25 @@ public class TshirtController {
     }
 
     @PutMapping("/{id}/update-with-image")
-    public ResponseEntity<?> updateTshirtWithImage(
-            @PathVariable Long id,
-            @RequestPart(value = "tshirt", required = false) TshirtUploadDTO tshirtDto,
-            @RequestPart(value = "image", required = false) MultipartFile image,
-            @RequestPart(value = "deleteOldImage", required = false) String deleteOldImage
-    ) throws IOException {
-        return tshirtService.getTshirtById(id).map(tshirt -> {
-            try {
-                if (tshirtDto == null) {
-                    return ResponseEntity.badRequest().body("T-shirt data is required");
-                }
-                
-                // Find brand and color entities
-                Brand brandEntity = brandService.findBrandByName(tshirtDto.getBrand())
-                    .orElseThrow(() -> new RuntimeException("Brand not found: " + tshirtDto.getBrand()));
-                Color colorEntity = colorService.findColorByName(tshirtDto.getColor())
-                    .orElseThrow(() -> new RuntimeException("Color not found: " + tshirtDto.getColor()));
-                
-                // Update fields
-                tshirt.setName(tshirtDto.getName());
-                tshirt.setBrand(brandEntity);
-                tshirt.setColor(colorEntity);
-                tshirt.setSizes(tshirtDto.getSizes());
-                tshirt.setGender(tshirtDto.getGender());
-                tshirt.setMaterial(tshirtDto.getMaterial());
-                tshirt.setFit(tshirtDto.getFit());
-                tshirt.setSleeveType(tshirtDto.getSleeveType());
-                tshirt.setNeckType(tshirtDto.getNeckType());
-                tshirt.setPrice(tshirtDto.getPrice());
-                tshirt.setStock(tshirtDto.getStock());
-                tshirt.setFeatured(tshirtDto.getFeatured() != null && tshirtDto.getFeatured());
-                tshirt.setTags(tshirtDto.getTags());
-                tshirt.setDescription(tshirtDto.getDescription());
-                
-                // Handle image - automatically replace old image with new one
-                if (image != null && !image.isEmpty()) {
-                    // Always delete the old image when uploading a new one
-                    tshirt.setImageData(null);
-                    tshirt.setImageType(null);
-                    tshirt.setThumbnailData(null);
-                    tshirt.setThumbnailType(null);
-                    
-                    // Process and set the new image
-                    processAndSetImage(tshirt, image);
-                } else if ("true".equals(deleteOldImage)) {
-                    // Only delete old image if explicitly requested and no new image provided
-                    tshirt.setImageData(null);
-                    tshirt.setImageType(null);
-                    tshirt.setThumbnailData(null);
-                    tshirt.setThumbnailType(null);
-                }
-                
-                tshirtService.updateTshirt(id, tshirt);
-                return ResponseEntity.ok(tshirt);
-            } catch (Exception e) {
-                return ResponseEntity.badRequest().body(e.getMessage());
-            }
-        }).orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/{id}/image")
-    public ResponseEntity<byte[]> getTshirtImage(@PathVariable Long id, 
-                                                @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch,
-                                                @RequestHeader(value = "If-Modified-Since", required = false) String ifModifiedSince) {
-        System.out.println("Image request for t-shirt ID: " + id);
-        
-        return tshirtService.getTshirtById(id)
-                .filter(t -> t.getImageData() != null && t.getImageData().length > 0)
-                .map(t -> {
-                    System.out.println("Found image data for t-shirt ID: " + id + ", size: " + t.getImageData().length + " bytes");
-                    
-                    // Create ETag for cache validation
-                    String etag = "\"" + id + "-" + t.getCompressedFileSize() + "\"";
-                    
-                    // Check if client has the latest version
-                    if (ifNoneMatch != null && ifNoneMatch.equals(etag)) {
-                        System.out.println("Client has latest version, returning 304 Not Modified for t-shirt ID: " + id);
-                        return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body((byte[]) null);
-                    }
-                    
-                    // Check if client has a recent version based on modification time
-                    if (ifModifiedSince != null && t.getCreatedAt() != null) {
-                        try {
-                            java.time.Instant clientTime = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
-                                .parse(ifModifiedSince, java.time.Instant::from);
-                            if (!t.getCreatedAt().toInstant(java.time.ZoneOffset.UTC).isAfter(clientTime)) {
-                                System.out.println("Client has recent version, returning 304 Not Modified for t-shirt ID: " + id);
-                                return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body((byte[]) null);
-                            }
-                        } catch (Exception e) {
-                            // Ignore parsing errors and continue with normal response
-                        }
-                    }
-                    
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.parseMediaType(t.getImageType() != null ? t.getImageType() : "image/png"));
-                    
-                    // Add cache headers to prevent repeated requests
-                    headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
-                    headers.setETag(etag);
-                    headers.setLastModified(t.getCreatedAt() != null ? t.getCreatedAt().toInstant(java.time.ZoneOffset.UTC) : java.time.Instant.now());
-                    
-                    return new ResponseEntity<>(t.getImageData(), headers, org.springframework.http.HttpStatus.OK);
-                })
-                .orElse(ResponseEntity.<byte[]>notFound().build());
-    }
-    
-    @GetMapping("/{id}/thumbnail")
-    public ResponseEntity<byte[]> getTshirtThumbnail(@PathVariable Long id,
-                                                    @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch,
-                                                    @RequestHeader(value = "If-Modified-Since", required = false) String ifModifiedSince) {
-        return tshirtService.getTshirtById(id)
-                .filter(t -> t.getThumbnailData() != null)
-                .map(t -> {
-                    // Create ETag for cache validation
-                    String etag = "\"thumb-" + id + "-" + (t.getThumbnailData() != null ? t.getThumbnailData().length : 0) + "\"";
-                    
-                    // Check if client has the latest version
-                    if (ifNoneMatch != null && ifNoneMatch.equals(etag)) {
-                        return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body((byte[]) null);
-                    }
-                    
-                    // Check if client has a recent version based on modification time
-                    if (ifModifiedSince != null && t.getCreatedAt() != null) {
-                        try {
-                            java.time.Instant clientTime = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
-                                .parse(ifModifiedSince, java.time.Instant::from);
-                            if (!t.getCreatedAt().toInstant(java.time.ZoneOffset.UTC).isAfter(clientTime)) {
-                                return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body((byte[]) null);
-                            }
-                        } catch (Exception e) {
-                            // Ignore parsing errors and continue with normal response
-                        }
-                    }
-                    
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.parseMediaType(t.getThumbnailType() != null ? t.getThumbnailType() : "image/jpeg"));
-                    
-                    // Add cache headers for thumbnails
-                    headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
-                    headers.setETag(etag);
-                    headers.setLastModified(t.getCreatedAt() != null ? t.getCreatedAt().toInstant(java.time.ZoneOffset.UTC) : java.time.Instant.now());
-                    
-                    return new ResponseEntity<>(t.getThumbnailData(), headers, org.springframework.http.HttpStatus.OK);
-                })
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body((byte[]) null));
-    }
-    
-    @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadTshirtImage(@PathVariable Long id) {
-        return tshirtService.getTshirtById(id)
-                .filter(t -> t.getImageData() != null)
-                .map(t -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.parseMediaType(t.getImageType() != null ? t.getImageType() : "image/png"));
-                    headers.setContentDispositionFormData("attachment", t.getName() + ".png");
-                    return new ResponseEntity<>(t.getImageData(), headers, org.springframework.http.HttpStatus.OK);
-                })
-                .orElse(ResponseEntity.<byte[]>notFound().build());
-    }
-
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadTshirt(
-            @RequestPart(value = "tshirt", required = false) TshirtUploadDTO tshirtDto,
-            @RequestPart(value = "image", required = false) MultipartFile image
-    ) {
-        if (tshirtDto == null || image == null || image.isEmpty() || tshirtDto.getBrand() == null || tshirtDto.getColor() == null || tshirtDto.getName() == null || tshirtDto.getName().isEmpty()) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", "T-shirt, image, brand, color, and name are required."));
-        }
+public ResponseEntity<?> updateTshirtWithImage(
+        @PathVariable Long id,
+        @RequestPart(value = "tshirt") TshirtUploadDTO tshirtDto,
+        @RequestPart(value = "image", required = false) MultipartFile image
+) throws IOException {
+    return tshirtService.getTshirtById(id).map(tshirt -> {
         try {
-            Brand brand = brandService.findBrandByName(tshirtDto.getBrand())
-                    .orElseThrow(() -> new RuntimeException("Brand not found: " + tshirtDto.getBrand()));
-
-            Color color = colorService.findColorByName(tshirtDto.getColor())
-                    .orElseThrow(() -> new RuntimeException("Color not found: " + tshirtDto.getColor()));
-
-            Tshirt tshirt = new Tshirt();
+            if (tshirtDto == null) {
+                return ResponseEntity.badRequest().body("T-shirt data is required");
+            }
+            // Find brand and color entities
+            Brand brandEntity = brandService.findBrandByName(tshirtDto.getBrand())
+                .orElseThrow(() -> new RuntimeException("Brand not found: " + tshirtDto.getBrand()));
+            Color colorEntity = colorService.findColorByName(tshirtDto.getColor())
+                .orElseThrow(() -> new RuntimeException("Color not found: " + tshirtDto.getColor()));
+            // Update fields
             tshirt.setName(tshirtDto.getName());
-            tshirt.setBrand(brand);
-            tshirt.setColor(color);
+            tshirt.setBrand(brandEntity);
+            tshirt.setColor(colorEntity);
             tshirt.setSizes(tshirtDto.getSizes());
             tshirt.setGender(tshirtDto.getGender());
             tshirt.setMaterial(tshirtDto.getMaterial());
@@ -267,53 +102,71 @@ public class TshirtController {
             tshirt.setFeatured(tshirtDto.getFeatured() != null && tshirtDto.getFeatured());
             tshirt.setTags(tshirtDto.getTags());
             tshirt.setDescription(tshirtDto.getDescription());
-            
-            processAndSetImage(tshirt, image);
-            
-            tshirtService.createTshirt(tshirt);
+            // Handle image upload
+        
+            if (image != null && !image.isEmpty()) {
+                String imageUrl = cloudinaryService.uploadImage(image, "tshirts");
+                String thumbnailUrl = cloudinaryService.generateThumbnailUrl(imageUrl, 200, 200);
+                String optimizedUrl = cloudinaryService.generateOptimizedUrl(imageUrl);
+                tshirt.setImageUrl(imageUrl);
+                tshirt.setThumbnailUrl(thumbnailUrl);
+                tshirt.setOptimizedUrl(optimizedUrl);
+                tshirt.setImageType(image.getContentType());
+            }
+            tshirtService.updateTshirt(id, tshirt);
             return ResponseEntity.ok(tshirt);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Failed to upload t-shirt: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }).orElse(ResponseEntity.notFound().build());
+}
+
+    @PostMapping("/upload")
+public ResponseEntity<?> uploadTshirt(
+        @RequestPart("tshirt") TshirtUploadDTO tshirtDto,
+        @RequestPart(value = "image", required = false) MultipartFile image
+) {
+    if (tshirtDto == null) {
+        return ResponseEntity.badRequest().body("T-shirt data is required");
     }
-    
-    private void processAndSetImage(Tshirt tshirt, MultipartFile image) throws IOException {
-        // Store original file size
-        tshirt.setOriginalFileSize((long) image.getBytes().length);
-        
-        // Get original dimensions
-        BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(image.getBytes()));
-        if (originalImage != null) {
-            tshirt.setOriginalWidth(originalImage.getWidth());
-            tshirt.setOriginalHeight(originalImage.getHeight());
+    try {
+        // Find brand and color entities
+        Brand brandEntity = brandService.findBrandByName(tshirtDto.getBrand())
+            .orElseThrow(() -> new RuntimeException("Brand not found: " + tshirtDto.getBrand()));
+        Color colorEntity = colorService.findColorByName(tshirtDto.getColor())
+            .orElseThrow(() -> new RuntimeException("Color not found: " + tshirtDto.getColor()));
+        Tshirt tshirt = new Tshirt();
+        tshirt.setName(tshirtDto.getName());
+        tshirt.setBrand(brandEntity);
+        tshirt.setColor(colorEntity);
+        tshirt.setSizes(tshirtDto.getSizes());
+        tshirt.setGender(tshirtDto.getGender());
+        tshirt.setMaterial(tshirtDto.getMaterial());
+        tshirt.setFit(tshirtDto.getFit());
+        tshirt.setSleeveType(tshirtDto.getSleeveType());
+        tshirt.setNeckType(tshirtDto.getNeckType());
+        tshirt.setPrice(tshirtDto.getPrice());
+        tshirt.setStock(tshirtDto.getStock());
+        tshirt.setFeatured(tshirtDto.getFeatured() != null && tshirtDto.getFeatured());
+        tshirt.setTags(tshirtDto.getTags());
+        tshirt.setDescription(tshirtDto.getDescription());
+   
+          // Handle image upload
+        if (image != null && !image.isEmpty()) {
+            String imageUrl = cloudinaryService.uploadImage(image, "tshirts");
+            String thumbnailUrl = cloudinaryService.generateThumbnailUrl(imageUrl, 200, 200);
+            String optimizedUrl = cloudinaryService.generateOptimizedUrl(imageUrl);
+            tshirt.setImageUrl(imageUrl);
+            tshirt.setThumbnailUrl(thumbnailUrl);
+            tshirt.setOptimizedUrl(optimizedUrl);
+            tshirt.setImageType(image.getContentType());
         }
-        
-        // Compress the image
-        byte[] compressedData = imageCompressionService.compressImage(image);
-        tshirt.setImageData(compressedData);
-        tshirt.setImageType(imageCompressionService.getCompressedContentType(image.getContentType()));
-        
-        // Store compressed file size
-        tshirt.setCompressedFileSize((long) compressedData.length);
-        
-        // Calculate compression ratio
-        if (tshirt.getOriginalFileSize() != null && tshirt.getOriginalFileSize() > 0) {
-            double ratio = (double) tshirt.getCompressedFileSize() / tshirt.getOriginalFileSize();
-            tshirt.setCompressionRatio(String.format("%.2f%%", (1 - ratio) * 100));
-        }
-        
-        // Get compressed dimensions
-        BufferedImage compressedImage = ImageIO.read(new ByteArrayInputStream(compressedData));
-        if (compressedImage != null) {
-            tshirt.setCompressedWidth(compressedImage.getWidth());
-            tshirt.setCompressedHeight(compressedImage.getHeight());
-        }
-        
-        // Generate thumbnail
-        byte[] thumbnailData = imageCompressionService.generateThumbnail(compressedData, 200);
-        tshirt.setThumbnailData(thumbnailData);
-        tshirt.setThumbnailType("image/jpeg");
+        Tshirt savedTshirt = tshirtService.createTshirt(tshirt);
+        return ResponseEntity.ok(savedTshirt);
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body("Failed to upload t-shirt: " + e.getMessage());
     }
+}
 
     @GetMapping("/sizes")
     public List<String> getSizes() {
@@ -322,7 +175,7 @@ public class TshirtController {
 
     @GetMapping("/genders")
     public List<String> getGenders() {
-        return List.of("Men", "Women", "Unisex", "Children");
+        return List.of("Men", "Women", "Unisex", "Kids");
     }
 
     @GetMapping("/materials")
@@ -352,30 +205,27 @@ public class TshirtController {
             @RequestParam(required = false) String gender) {
         try {
             Brand brandEntity = brandService.findBrandByName(brand)
-                    .orElseThrow(() -> new RuntimeException("Brand not found: " + brand));
+                .orElseThrow(() -> new RuntimeException("Brand not found: " + brand));
             Color colorEntity = colorService.findColorByName(color)
-                    .orElseThrow(() -> new RuntimeException("Color not found: " + color));
-
+                .orElseThrow(() -> new RuntimeException("Color not found: " + color));
+            
             Optional<Tshirt> tshirt;
             if (gender != null && !gender.isEmpty()) {
                 tshirt = tshirtService.findByBrandColorAndGender(brandEntity, colorEntity, gender);
             } else {
                 tshirt = tshirtService.findByBrandAndColor(brandEntity, colorEntity);
             }
-
-            return tshirt
-                    .map(tshirtItem -> {
-                        String imageEndpoint = "/api/tshirts/" + tshirtItem.getId() + "/image";
-                        return ResponseEntity.ok(java.util.Map.of("imageEndpoint", imageEndpoint));
-                    })
+            
+            return tshirt.map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
 
     @GetMapping("/trending")
     public List<Tshirt> getTrendingTshirts() {
+        // Return featured t-shirts as trending
         return tshirtService.getAllTshirts().stream()
                 .filter(Tshirt::getFeatured)
                 .limit(10)
@@ -393,13 +243,7 @@ public class TshirtController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
         
-        Pageable pageable;
-        if ("desc".equalsIgnoreCase(sortOrder)) {
-            pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(sortBy).descending());
-        } else {
-            pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(sortBy).ascending());
-        }
-        
+        Pageable pageable = PageRequest.of(page, size);
         Page<Tshirt> tshirts = tshirtService.getTshirtsWithFilters(search, brand, color, gender, pageable);
         return ResponseEntity.ok(tshirts);
     }
@@ -409,9 +253,10 @@ public class TshirtController {
             @RequestParam String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
-        Page<Tshirt> results = tshirtService.searchTshirts(query, pageable);
-        return ResponseEntity.ok(results);
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Tshirt> tshirts = tshirtService.searchTshirts(query, pageable);
+        return ResponseEntity.ok(tshirts);
     }
 
     @GetMapping("/filter")
@@ -424,15 +269,9 @@ public class TshirtController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
         
-        Pageable pageable;
-        if ("desc".equalsIgnoreCase(sortOrder)) {
-            pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(sortBy).descending());
-        } else {
-            pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(sortBy).ascending());
-        }
-        
-        Page<Tshirt> results = tshirtService.filterTshirts(brand, color, gender, pageable);
-        return ResponseEntity.ok(results);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Tshirt> tshirts = tshirtService.filterTshirts(brand, color, gender, pageable);
+        return ResponseEntity.ok(tshirts);
     }
 
     @GetMapping("/available-colors")
@@ -440,21 +279,17 @@ public class TshirtController {
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String gender) {
         try {
-            List<Color> availableColors;
+            List<Color> colors;
             if (brand != null && !brand.isEmpty() && gender != null && !gender.isEmpty()) {
-                // Get colors available for specific brand and gender
-                availableColors = tshirtService.getAvailableColorsByBrandAndGender(brand, gender);
+                colors = tshirtService.getAvailableColorsByBrandAndGender(brand, gender);
             } else if (brand != null && !brand.isEmpty()) {
-                // Get colors available for specific brand
-                availableColors = tshirtService.getAvailableColorsByBrand(brand);
+                colors = tshirtService.getAvailableColorsByBrand(brand);
             } else if (gender != null && !gender.isEmpty()) {
-                // Get colors available for specific gender
-                availableColors = tshirtService.getAvailableColorsByGender(gender);
+                colors = tshirtService.getAvailableColorsByGender(gender);
             } else {
-                // Get all colors that have t-shirts
-                availableColors = tshirtService.getAllAvailableColors();
+                colors = tshirtService.getAllAvailableColors();
             }
-            return ResponseEntity.ok(availableColors);
+            return ResponseEntity.ok(colors);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -464,15 +299,24 @@ public class TshirtController {
     public ResponseEntity<List<Brand>> getAvailableBrands(
             @RequestParam(required = false) String gender) {
         try {
-            List<Brand> availableBrands;
+            List<Brand> brands;
             if (gender != null && !gender.isEmpty()) {
-                availableBrands = tshirtService.getAvailableBrandsByGender(gender);
+                brands = tshirtService.getAvailableBrandsByGender(gender);
             } else {
-                availableBrands = tshirtService.getAllAvailableBrands();
+                brands = tshirtService.getAllAvailableBrands();
             }
-            return ResponseEntity.ok(availableBrands);
+            return ResponseEntity.ok(brands);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @GetMapping("/byBrandColorGender")
+    public List<Tshirt> getByBrandColorGender(
+            @RequestParam String brand,
+            @RequestParam String color,
+            @RequestParam String gender
+    ) {
+        return tshirtService.findAllByBrandColorGender(brand, color, gender);
     }
 } 

@@ -1,192 +1,88 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import { FaTrash, FaLock } from 'react-icons/fa';
 
 export default function Cart() {
-  const { cartItems, removeFromCart, updateQuantity, updateItemProperty, getCartTotal, loading } = useCart();
-  const [previewImg, setPreviewImg] = useState(null);
-  const [editingSize, setEditingSize] = useState(null);
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal } = useCart();
   const navigate = useNavigate();
-  const sizeSelectRef = useRef(null);
-
-  // Standard sizes for selection
-  const standardSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-
-  // Handle clicking outside size selector
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (sizeSelectRef.current && !sizeSelectRef.current.contains(event.target)) {
-        setEditingSize(null);
-      }
-    };
-
-    if (editingSize) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [editingSize]);
-
-  const handleRemove = (item) => {
-    removeFromCart(item.id, item.size, item.color);
-  };
-
-  const handleQuantityChange = (item, newQuantity) => {
-    updateQuantity(item.id, item.size, item.color, newQuantity);
-  };
-
-  const handleSizeChange = (item, newSize) => {
-    updateItemProperty(item.id, item.size, item.color, 'size', newSize);
-    setEditingSize(null);
-  };
 
   const handleCheckout = () => {
-    if (cartItems.length > 0) {
-      navigate('/checkout');
-    }
+    navigate('/checkout');
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 min-h-screen">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">Your Cart</h1>
-      
-      {/* Preview Modal */}
-      {previewImg && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 px-2">
-          <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-6 relative max-w-lg w-full flex flex-col items-center">
-            <button 
-              onClick={() => setPreviewImg(null)} 
-              className="absolute top-2 right-2 text-2xl font-bold text-gray-600 hover:text-red-500 transition-colors"
-            >
-              &times;
-            </button>
-            <img src={previewImg} alt="Preview" className="w-full h-auto max-h-[70vh] object-contain rounded-xl" />
-          </div>
-        </div>
-      )}
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-extrabold text-gray-800 mb-8">Shopping Cart</h1>
 
-      {cartItems.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🛒</div>
-          <div className="text-gray-500 text-lg mb-6">Your cart is empty.</div>
-          <Link 
-            to="/products" 
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-700 transition"
-          >
-            Continue Shopping
-          </Link>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-4 mb-6">
-            {cartItems.map((item, index) => (
-              <div key={`${item.id}-${item.size}-${item.color}-${index}`} className="flex flex-col sm:flex-row items-center gap-4 bg-white rounded-xl shadow p-4">
-                <img 
-                  src={item.combinedImage || item.tshirtImg || item.design || item.image} 
-                  alt={item.name} 
-                  className="w-20 h-20 object-cover rounded cursor-pointer border-2 border-blue-200 hover:border-blue-500 transition" 
-                  onClick={() => setPreviewImg(item.combinedImage || item.tshirtImg || item.design || item.image)} 
-                  title="Click to preview" 
-                />
-                <div className="flex-1 w-full">
-                  <div className="font-semibold text-gray-700 text-base sm:text-lg">{item.name}</div>
-                  <div className="text-gray-500 text-xs sm:text-sm">
-                    Brand: {item.brand} | Color: {item.color}
+        {cartItems.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-xl shadow-lg">
+            <div className="text-6xl mb-4">🛒</div>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your Cart is Empty</h2>
+            <p className="text-gray-600 mb-6">Looks like you haven't added anything to your cart yet.</p>
+            <Link to="/products" className="bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold px-8 py-3 rounded-lg shadow-lg hover:scale-105 transition-transform">
+              Start Shopping
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Cart Items */}
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 space-y-6">
+              {cartItems.map((item) => (
+                <div key={`${item.id}-${item.size}`} className="flex flex-col sm:flex-row gap-4 border-b pb-6 last:border-b-0">
+                  <img src={item.image || '/default-tshirt.svg'} alt={item.name} className="w-full sm:w-28 h-auto sm:h-28 object-cover rounded-lg border" />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg">{item.name}</h3>
+                    <p className="text-gray-500 text-sm">Size: {item.size} | Color: {item.color}</p>
+                    <p className="text-gray-500 text-sm">Brand: {item.brand || 'TrendTee'}</p>
                   </div>
-                  {/* Size Selection */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-gray-500 text-xs sm:text-sm">Size:</span>
-                    {editingSize === `${item.id}-${item.size}-${item.color}` ? (
-                      <div className="flex items-center gap-1" ref={sizeSelectRef}>
-                        <select
-                          value={item.size}
-                          onChange={(e) => handleSizeChange(item, e.target.value)}
-                          className="text-xs sm:text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
-                          autoFocus
-                        >
-                          {standardSizes.map(size => (
-                            <option key={size} value={size}>{size}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => setEditingSize(null)}
-                          className="text-xs text-gray-500 hover:text-red-600 px-1 transition-colors"
-                          title="Cancel"
-                        >
-                          ✕
-                        </button>
+                  <div className="flex flex-col items-start sm:items-end justify-between">
+                    <span className="font-bold text-lg text-pink-600">₹{(item.price * item.quantity).toFixed(2)}</span>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center border rounded-lg">
+                        <button onClick={() => updateQuantity(item.id, item.size, item.quantity - 1)} className="px-3 py-1 font-bold">-</button>
+                        <span className="px-4 py-1">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, item.size, item.quantity + 1)} className="px-3 py-1 font-bold">+</button>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-700 text-xs sm:text-sm font-medium bg-gray-100 px-2 py-1 rounded">{item.size}</span>
-                        <button
-                          onClick={() => setEditingSize(`${item.id}-${item.size}-${item.color}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline transition-all"
-                          title="Change size"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {item.designName && (
-                    <div className="text-gray-500 text-xs sm:text-sm">
-                      Design: {item.designName}
+                      <button onClick={() => removeFromCart(item.id, item.size)} className="text-gray-400 hover:text-red-500 transition">
+                        <FaTrash />
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-lg font-bold text-blue-700">
-                    ${(item.price * (item.quantity || 1)).toFixed(2)}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleQuantityChange(item, (item.quantity || 1) - 1)}
-                      className="w-8 h-8 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition flex items-center justify-center"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center font-semibold">{item.quantity || 1}</span>
-                    <button
-                      onClick={() => handleQuantityChange(item, (item.quantity || 1) + 1)}
-                      className="w-8 h-8 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition flex items-center justify-center"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button 
-                    onClick={() => handleRemove(item)} 
-                    className="ml-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-700 transition w-full sm:w-auto"
-                  >
-                    Remove
-                  </button>
+              ))}
+            </div>
+
+            {/* Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+                <h2 className="font-bold text-xl mb-4">Order Summary</h2>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-semibold">₹{getCartTotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Shipping</span>
+                  <span className="font-semibold">FREE</span>
+                </div>
+                <div className="border-t my-4"></div>
+                <div className="flex justify-between font-bold text-lg mb-6">
+                  <span>Total</span>
+                  <span>₹{getCartTotal().toFixed(2)}</span>
+                </div>
+                <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg hover:scale-105 transition-transform">
+                  Proceed to Checkout
+                </button>
+                <div className="flex items-center justify-center gap-2 mt-4 text-sm text-green-600">
+                  <FaLock />
+                  <span>Secure Checkout</span>
                 </div>
               </div>
-            ))}
-          </div>
-          
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-            <div className="text-lg sm:text-xl font-bold">Total: ${getCartTotal().toFixed(2)}</div>
-            <div className="flex gap-2">
-              <Link 
-                to="/products" 
-                className="bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-gray-700 transition"
-              >
-                Continue Shopping
-              </Link>
-              <button 
-                onClick={handleCheckout}
-                disabled={loading}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Processing...' : 'Checkout'}
-              </button>
             </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 } 

@@ -5,8 +5,8 @@
 
 # Env files
 .env
-/backend-code/.env
 .env*.local
+/backend-code/.env
 
 # Log files
 npm-debug.log*
@@ -28,27 +28,4 @@ yarn-error.log*
 Thumbs.db
 
 # Test coverage
-/coverage
-
-# Maven
-/target/
-!.mvn/wrapper/maven-wrapper.jar
-
-# Eclipse
-.classpath
-.project
-.settings/
-
-# IntelliJ
-*.iml
-*.iws
-out/
-
-# VS Code
-.vscode/
-
-# Logs
-*.log
-
-# Environment files
- .env
+/coverage 

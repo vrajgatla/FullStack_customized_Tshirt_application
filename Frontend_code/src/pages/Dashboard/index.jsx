@@ -1,36 +1,102 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { FaTshirt, FaPaintBrush, FaFolder, FaImages, FaShoppingBag, FaChartLine } from 'react-icons/fa';
+
+const StatCard = ({ icon, label, value, color }) => (
+  <div className={`bg-gradient-to-br ${color} text-white p-6 rounded-2xl shadow-lg`}>
+    <div className="flex items-center">
+      <div className="text-3xl mr-4">{icon}</div>
+      <div>
+        <div className="text-4xl font-bold">{value}</div>
+        <div className="text-lg">{label}</div>
+      </div>
+    </div>
+  </div>
+);
+
+const NavLink = ({ to, icon, title, subtitle, color }) => (
+  <Link to={to} className={`block bg-white hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 rounded-2xl shadow-lg p-6`}>
+    <div className="flex items-center">
+      <div className={`text-3xl p-4 rounded-full mr-5 ${color} text-white`}>
+        {icon}
+      </div>
+      <div>
+        <h3 className="font-bold text-xl text-gray-800">{title}</h3>
+        <p className="text-gray-500">{subtitle}</p>
+      </div>
+    </div>
+  </Link>
+);
 
 export default function Dashboard() {
   const { user } = useAuth();
+  
   if (!user) return null;
+
   return (
-    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 mt-8 sm:mt-10 p-4 sm:p-8 bg-white rounded shadow">
-      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 text-blue-700">Welcome, {user.name}!</h2>
-      <p className="mb-6 sm:mb-8 text-gray-600 text-base sm:text-lg">Manage your t-shirts and designs or add new ones below.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
-        <Link to="/upload-tshirt" className="flex flex-col items-center justify-center bg-blue-100 hover:bg-blue-200 rounded-xl p-6 sm:p-8 shadow transition">
-          <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">👕</span>
-          <span className="text-base sm:text-xl font-semibold text-blue-800">Add T-shirt</span>
-        </Link>
-        <Link to="/upload-design" className="flex flex-col items-center justify-center bg-purple-100 hover:bg-purple-200 rounded-xl p-6 sm:p-8 shadow transition">
-          <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">🎨</span>
-          <span className="text-base sm:text-xl font-semibold text-purple-800">Add Design</span>
-        </Link>
-        <Link to="/manage-tshirts" className="flex flex-col items-center justify-center bg-green-100 hover:bg-green-200 rounded-xl p-6 sm:p-8 shadow transition">
-          <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">🗂️</span>
-          <span className="text-base sm:text-xl font-semibold text-green-800">Manage T-shirts</span>
-        </Link>
-        <Link to="/manage-designs" className="flex flex-col items-center justify-center bg-yellow-100 hover:bg-yellow-200 rounded-xl p-6 sm:p-8 shadow transition">
-          <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">🖼️</span>
-          <span className="text-base sm:text-xl font-semibold text-yellow-800">Manage Designs</span>
-        </Link>
-        <Link to="/manage-designed-tshirts" className="flex flex-col items-center justify-center bg-pink-100 hover:bg-pink-200 rounded-xl p-6 sm:p-8 shadow transition">
-          <span className="text-4xl sm:text-5xl mb-2 sm:mb-4">✨</span>
-          <span className="text-base sm:text-xl font-semibold text-pink-800">Manage Designed T-Shirts</span>
-        </Link>
+    <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <header className="mb-10">
+        <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">Admin Dashboard</h1>
+        <p className="text-xl text-gray-500 mt-2">Welcome back, <span className="font-semibold text-pink-500">{user.name}</span>!</p>
+      </header>
+
+      {/* Stats Section */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <StatCard icon={<FaShoppingBag />} label="Total Orders" value="1,234" color="from-blue-400 to-blue-600" />
+        <StatCard icon={<FaTshirt />} label="T-shirts" value="56" color="from-green-400 to-green-600" />
+        <StatCard icon={<FaPaintBrush />} label="Designs" value="128" color="from-purple-400 to-purple-600" />
+        <StatCard icon={<FaChartLine />} label="Revenue" value="₹12,345" color="from-pink-400 to-pink-600" />
+      </section>
+
+      {/* Navigation Section */}
+      <section>
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">Management Panel</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <NavLink
+            to="/admin/tshirt-upload"
+            icon={<FaTshirt />}
+            title="Add New T-shirt"
+            subtitle="Upload and configure new T-shirt products"
+            color="bg-blue-500"
+          />
+          <NavLink
+            to="/admin/design-upload"
+            icon={<FaPaintBrush />}
+            title="Add New Design"
+            subtitle="Upload new designs for customization"
+            color="bg-purple-500"
+          />
+          <NavLink
+            to="/admin/manage-tshirts"
+            icon={<FaFolder />}
+            title="Manage T-shirts"
+            subtitle="Edit, view, or delete existing T-shirts"
+            color="bg-green-500"
+          />
+          <NavLink
+            to="/admin/manage-designs"
+            icon={<FaImages />}
+            title="Manage Designs"
+            subtitle="Edit, view, or delete existing designs"
+            color="bg-yellow-500"
+          />
+          <NavLink
+            to="/admin/manage-designed-tshirts"
+            icon={<FaShoppingBag />}
+            title="Manage Designed T-shirts"
+            subtitle="View and manage community-designed T-shirts"
+            color="bg-pink-500"
+          />
+           <NavLink
+            to="/orders"
+            icon={<FaShoppingBag />}
+            title="View All Orders"
+            subtitle="Browse and manage all customer orders"
+            color="bg-red-500"
+          />
       </div>
+      </section>
     </div>
   );
 } 

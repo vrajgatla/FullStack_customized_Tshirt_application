@@ -42,15 +42,13 @@ public class DesignedTshirt {
     private Integer designPositionY;
     private String tshirtZoom;
     
-    // Image data
-    @Lob
-    private byte[] imageData;
-    private String imageType;
+    // Cloudinary URLs
+    private String imageUrl;
+    private String thumbnailUrl;
+    private String optimizedUrl;
     
-    // Compression and thumbnail data
-    @Lob
-    private byte[] thumbnailData;
-    private String thumbnailType;
+    // Metadata
+    private String imageType;
     private Long originalFileSize;
     private Long compressedFileSize;
     private Integer originalWidth;
@@ -58,6 +56,10 @@ public class DesignedTshirt {
     private Integer compressedWidth;
     private Integer compressedHeight;
     private String compressionRatio;
+    
+    // Cloudinary specific fields
+    private String cloudinaryPublicId;
+    private String cloudinaryVersion;
     
     // Metadata
     private LocalDateTime createdAt;
@@ -134,20 +136,20 @@ public class DesignedTshirt {
     public String getTshirtZoom() { return tshirtZoom; }
     public void setTshirtZoom(String tshirtZoom) { this.tshirtZoom = tshirtZoom; }
     
-    // Image data getters and setters
-    public byte[] getImageData() { return imageData; }
-    public void setImageData(byte[] imageData) { this.imageData = imageData; }
+    // Cloudinary URL getters and setters
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+    
+    public String getOptimizedUrl() { return optimizedUrl; }
+    public void setOptimizedUrl(String optimizedUrl) { this.optimizedUrl = optimizedUrl; }
     
     public String getImageType() { return imageType; }
     public void setImageType(String imageType) { this.imageType = imageType; }
     
-    // Compression getters and setters
-    public byte[] getThumbnailData() { return thumbnailData; }
-    public void setThumbnailData(byte[] thumbnailData) { this.thumbnailData = thumbnailData; }
-    
-    public String getThumbnailType() { return thumbnailType; }
-    public void setThumbnailType(String thumbnailType) { this.thumbnailType = thumbnailType; }
-    
+    // Metadata getters and setters
     public Long getOriginalFileSize() { return originalFileSize; }
     public void setOriginalFileSize(Long originalFileSize) { this.originalFileSize = originalFileSize; }
     
@@ -168,6 +170,13 @@ public class DesignedTshirt {
     
     public String getCompressionRatio() { return compressionRatio; }
     public void setCompressionRatio(String compressionRatio) { this.compressionRatio = compressionRatio; }
+    
+    // Cloudinary specific getters and setters
+    public String getCloudinaryPublicId() { return cloudinaryPublicId; }
+    public void setCloudinaryPublicId(String cloudinaryPublicId) { this.cloudinaryPublicId = cloudinaryPublicId; }
+    
+    public String getCloudinaryVersion() { return cloudinaryVersion; }
+    public void setCloudinaryVersion(String cloudinaryVersion) { this.cloudinaryVersion = cloudinaryVersion; }
     
     // Metadata getters and setters
     public LocalDateTime getCreatedAt() { return createdAt; }

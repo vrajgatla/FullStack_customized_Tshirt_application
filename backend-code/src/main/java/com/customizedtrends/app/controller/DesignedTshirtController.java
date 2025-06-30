@@ -10,6 +10,7 @@ import com.customizedtrends.app.repository.BrandRepository;
 import com.customizedtrends.app.repository.ColorRepository;
 import com.customizedtrends.app.repository.DesignRepository;
 import com.customizedtrends.app.repository.DesignedTshirtRepository;
+import com.customizedtrends.app.service.CloudinaryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -48,59 +49,51 @@ public class DesignedTshirtController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CloudinaryService cloudinaryService;
+
     // Create a new designed t-shirt (Admin only)
     @PostMapping
     public ResponseEntity<?> createDesignedTshirt(
-            @RequestParam("designedTshirt") String designedTshirtJson,
-            @RequestParam(value = "image", required = false) MultipartFile imageFile,
-            @RequestParam("adminUsername") String adminUsername) {
+            @RequestParam("name") String name,
+            @RequestParam("brandName") String brandName,
+            @RequestParam("colorName") String colorName,
+            @RequestParam("gender") String gender,
+            @RequestParam("size") String size,
+            @RequestParam(value = "designId", required = false) String designId,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile
+    ) {
         try {
-            // Parse the JSON string to DTO
-            DesignedTshirtSaveDTO dto = objectMapper.readValue(designedTshirtJson, DesignedTshirtSaveDTO.class);
-            
-            // Convert DTO to entity
             DesignedTshirt designedTshirt = new DesignedTshirt();
-            designedTshirt.setName(dto.getName());
-            
-            // Set brand
-            if (dto.getBrandId() != null) {
-                Optional<Brand> brand = brandRepository.findById(dto.getBrandId());
-                brand.ifPresent(designedTshirt::setBrand);
+            designedTshirt.setName(name);
+            designedTshirt.setGender(gender);
+            // Set brand by name
+            Brand brand = brandRepository.findByName(brandName).orElse(null);
+            if (brand != null) designedTshirt.setBrand(brand);
+            // Set color by name
+            Color color = colorRepository.findByName(colorName).orElse(null);
+            if (color != null) designedTshirt.setColor(color);
+            // Set size (if your model supports it)
+            designedTshirt.setSizes(List.of(size));
+            // Set design if provided
+            if (designId != null && !designId.isEmpty()) {
+                try {
+                    Long dId = Long.parseLong(designId);
+                    Design design = designRepository.findById(dId).orElse(null);
+                    if (design != null) designedTshirt.setDesign(design);
+                } catch (NumberFormatException ignored) {}
             }
-            
-            // Set color
-            if (dto.getColorId() != null) {
-                Optional<Color> color = colorRepository.findById(dto.getColorId());
-                color.ifPresent(designedTshirt::setColor);
+            // Handle image upload to Cloudinary
+            String imageUrl = null;
+            String thumbnailUrl = null;
+            String optimizedUrl = null;
+            if (imageFile != null && !imageFile.isEmpty()) {
+                imageUrl = cloudinaryService.uploadImage(imageFile, "designed-tshirts");
+                thumbnailUrl = cloudinaryService.generateThumbnailUrl(imageUrl, 200, 200);
+                optimizedUrl = cloudinaryService.generateOptimizedUrl(imageUrl);
             }
-            
-            // Set design (if using gallery design)
-            if (dto.getDesignId() != null) {
-                Optional<Design> design = designRepository.findById(dto.getDesignId());
-                design.ifPresent(designedTshirt::setDesign);
-            }
-            
-            // Set other properties
-            designedTshirt.setSizes(dto.getSizes());
-            designedTshirt.setGender(dto.getGender());
-            designedTshirt.setMaterial(dto.getMaterial());
-            designedTshirt.setFit(dto.getFit());
-            designedTshirt.setSleeveType(dto.getSleeveType());
-            designedTshirt.setNeckType(dto.getNeckType());
-            designedTshirt.setPrice(dto.getPrice());
-            designedTshirt.setStock(dto.getStock());
-            designedTshirt.setFeatured(dto.getFeatured());
-            designedTshirt.setTags(dto.getTags());
-            designedTshirt.setDescription(dto.getDescription());
-            
-            // Set design customization details
-            designedTshirt.setCustomDesignName(dto.getCustomDesignName());
-            designedTshirt.setDesignZoom(dto.getDesignZoom());
-            designedTshirt.setDesignPositionX(dto.getDesignPositionX());
-            designedTshirt.setDesignPositionY(dto.getDesignPositionY());
-            designedTshirt.setTshirtZoom(dto.getTshirtZoom());
-            
-            DesignedTshirt savedDesignedTshirt = designedTshirtService.createDesignedTshirt(designedTshirt, imageFile, adminUsername);
+            DesignedTshirt savedDesignedTshirt = designedTshirtService.createDesignedTshirt(
+                designedTshirt, imageUrl, thumbnailUrl, optimizedUrl, null);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedDesignedTshirt);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error creating designed t-shirt: " + e.getMessage());
@@ -296,7 +289,18 @@ public class DesignedTshirtController {
             updatedDesignedTshirt.setDesignPositionY(dto.getDesignPositionY());
             updatedDesignedTshirt.setTshirtZoom(dto.getTshirtZoom());
             
-            DesignedTshirt savedDesignedTshirt = designedTshirtService.updateDesignedTshirt(id, updatedDesignedTshirt, imageFile);
+            // Handle image upload to Cloudinary
+            String imageUrl = null;
+            String thumbnailUrl = null;
+            String optimizedUrl = null;
+            
+            if (imageFile != null && !imageFile.isEmpty()) {
+                imageUrl = cloudinaryService.uploadImage(imageFile, "designed-tshirts");
+                thumbnailUrl = cloudinaryService.generateThumbnailUrl(imageUrl, 200, 200);
+                optimizedUrl = cloudinaryService.generateOptimizedUrl(imageUrl);
+            }
+            
+            DesignedTshirt savedDesignedTshirt = designedTshirtService.updateDesignedTshirt(id, updatedDesignedTshirt, imageUrl, thumbnailUrl, optimizedUrl);
             return ResponseEntity.ok(savedDesignedTshirt);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error updating designed t-shirt: " + e.getMessage());
@@ -340,58 +344,6 @@ public class DesignedTshirtController {
     public ResponseEntity<List<DesignedTshirt>> getDesignedTshirtsByAdmin(@PathVariable String adminUsername) {
         List<DesignedTshirt> designedTshirts = designedTshirtService.getDesignedTshirtsByAdmin(adminUsername);
         return ResponseEntity.ok(designedTshirts);
-    }
-
-    // Get designed t-shirt image
-    @GetMapping("/{id}/image")
-    public ResponseEntity<byte[]> getDesignedTshirtImage(@PathVariable Long id) {
-        Optional<DesignedTshirt> designedTshirt = designedTshirtService.getDesignedTshirtById(id);
-        if (designedTshirt.isPresent() && designedTshirt.get().getImageData() != null) {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(designedTshirt.get().getImageType()));
-            
-            // Add cache headers for designed t-shirt images
-            headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
-            headers.setETag("\"designed-" + id + "-" + designedTshirt.get().getCompressedFileSize() + "\"");
-            headers.setLastModified(designedTshirt.get().getCreatedAt() != null ? designedTshirt.get().getCreatedAt().toInstant(java.time.ZoneOffset.UTC) : java.time.Instant.now());
-            
-            return new ResponseEntity<>(designedTshirt.get().getImageData(), headers, HttpStatus.OK);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // Get designed t-shirt thumbnail
-    @GetMapping("/{id}/thumbnail")
-    public ResponseEntity<byte[]> getDesignedTshirtThumbnail(@PathVariable Long id) {
-        Optional<DesignedTshirt> designedTshirt = designedTshirtService.getDesignedTshirtById(id);
-        if (designedTshirt.isPresent() && designedTshirt.get().getThumbnailData() != null) {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(designedTshirt.get().getThumbnailType()));
-            
-            // Add cache headers for designed t-shirt thumbnails
-            headers.setCacheControl("public, max-age=86400"); // Cache for 24 hours
-            headers.setETag("\"designed-thumb-" + id + "-" + (designedTshirt.get().getThumbnailData() != null ? designedTshirt.get().getThumbnailData().length : 0) + "\"");
-            headers.setLastModified(designedTshirt.get().getCreatedAt() != null ? designedTshirt.get().getCreatedAt().toInstant(java.time.ZoneOffset.UTC) : java.time.Instant.now());
-            
-            return new ResponseEntity<>(designedTshirt.get().getThumbnailData(), headers, HttpStatus.OK);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // Download designed t-shirt image
-    @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadDesignedTshirtImage(@PathVariable Long id) {
-        Optional<DesignedTshirt> designedTshirt = designedTshirtService.getDesignedTshirtById(id);
-        if (designedTshirt.isPresent() && designedTshirt.get().getImageData() != null) {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(designedTshirt.get().getImageType()));
-            headers.setContentDispositionFormData("attachment", "designed-tshirt-" + id + ".jpg");
-            return new ResponseEntity<>(designedTshirt.get().getImageData(), headers, HttpStatus.OK);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
     }
 
     // Get count of active designed t-shirts

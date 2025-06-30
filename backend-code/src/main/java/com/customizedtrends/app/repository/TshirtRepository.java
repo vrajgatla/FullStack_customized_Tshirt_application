@@ -57,4 +57,6 @@ public interface TshirtRepository extends JpaRepository<Tshirt, Long> {
     // Find all brands that have t-shirts
     @Query("SELECT DISTINCT t.brand FROM Tshirt t")
     List<Brand> findAllAvailableBrands();
+
+    List<Tshirt> findAllByBrandNameAndColorNameAndGender(String brand, String color, String gender);
 } 

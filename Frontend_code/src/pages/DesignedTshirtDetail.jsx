@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import ProductCard from '../Components/ProductCard';
+import { FaShoppingCart, FaHeart, FaShieldAlt, FaStar, FaTags } from 'react-icons/fa';
+
+// Mock related products
+const mockRelatedProducts = [
+  { id: 101, name: 'Urban Explorer Tee', price: 24.99, imageUrl: '/default-tshirt.svg' },
+  { id: 102, name: 'Vintage Vibe Tee', price: 22.99, imageUrl: '/default-tshirt.svg' },
+  { id: 103, name: 'Artisan Sketch Tee', price: 29.99, imageUrl: '/default-tshirt.svg' },
+  { id: 104, name: 'Graffiti Pop Tee', price: 27.99, imageUrl: '/default-tshirt.svg' },
+];
 
 export default function DesignedTshirtDetail() {
   const { id } = useParams();
@@ -11,370 +21,155 @@ export default function DesignedTshirtDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [addToCartMessage, setAddToCartMessage] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [mainImage, setMainImage] = useState('');
+  const [relatedProducts, setRelatedProducts] = useState(mockRelatedProducts);
 
   useEffect(() => {
     fetch(`/api/designed-tshirts/${id}`)
-      .then(res => {
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Designed t-shirt not found. It may have been removed or is no longer available.');
-          }
-          throw new Error('Failed to load designed t-shirt. Please try again later.');
-        }
-        return res.json();
-      })
+      .then(res => res.ok ? res.json() : Promise.reject(res))
       .then(data => {
+        if (!data) {
+          setError('Product not found.');
+          setLoading(false);
+          return;
+        }
         setDesignedTshirt(data);
+        setMainImage(data.imageUrl || '/default-tshirt.svg');
+        setSelectedSize((data.sizes && data.sizes[0]) || '');
         setLoading(false);
       })
       .catch(err => {
-        setError(err.message);
+        setError('Failed to load product. It may no longer exist.');
         setLoading(false);
       });
   }, [id]);
 
   const handleAddToCart = () => {
-    if (!selectedSize) {
-      setAddToCartMessage('Please select a size');
-      return;
-    }
-    if (!selectedColor) {
-      setAddToCartMessage('Please select a color');
-      return;
-    }
-
-    setAddingToCart(true);
-    setAddToCartMessage('');
-
-    // Add to cart
-    const cartItem = {
-      id: designedTshirt.id,
-      name: designedTshirt.name,
-      price: designedTshirt.price,
-      image: `/api/designed-tshirts/${designedTshirt.id}/image`,
-      size: selectedSize,
-      color: selectedColor,
-      type: 'designed-tshirt',
-      designId: designedTshirt.design?.id
-    };
-
-    addToCart(cartItem);
-    setAddToCartMessage('Added to cart successfully!');
-    
-    setTimeout(() => {
-      setAddingToCart(false);
-      setAddToCartMessage('');
-    }, 2000);
+    // Add to cart logic here
+    console.log('Added to cart:', { id, selectedSize, quantity });
   };
 
+  const availableSizes = designedTshirt?.tshirt?.sizes || ['S', 'M', 'L', 'XL', 'XXL'];
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-white flex items-center justify-center">
-        <div className="text-xl text-gray-600">Loading designed t-shirt...</div>
-      </div>
-    );
+    return <div className="text-center py-20">Loading...</div>;
   }
 
   if (error || !designedTshirt) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-white flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <div className="text-6xl mb-4">😕</div>
-          <div className="text-xl text-red-600 mb-4 font-semibold">Oops! Something went wrong</div>
-          <div className="text-gray-600 mb-6">{error || 'Designed t-shirt not found'}</div>
-          <div className="space-y-3">
-            <Link 
-              to="/designed-tshirts" 
-              className="block bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-lg"
-            >
-              Browse All Designed T-Shirts
-            </Link>
-            <Link 
-              to="/" 
-              className="block text-blue-600 hover:text-blue-800 font-medium"
-            >
-              ← Back to Home
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-20 text-red-500">{error || "Product not found."}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-white py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="mb-8">
-          <ol className="flex items-center space-x-2 text-sm text-gray-600">
-            <li><Link to="/" className="hover:text-blue-600">Home</Link></li>
-            <li>/</li>
-            <li><Link to="/designed-tshirts" className="hover:text-blue-600">Designed T-Shirts</Link></li>
-            <li>/</li>
-            <li className="text-gray-900">{designedTshirt.name}</li>
-          </ol>
-        </nav>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Image Section */}
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <div className="relative w-full aspect-square max-h-96">
-                <img 
-                  src={`/api/designed-tshirts/${designedTshirt.id}/image`} 
-                  alt={designedTshirt.name}
-                  className="w-full h-full object-contain rounded-xl shadow-lg"
-                  onError={e => {
-                    e.currentTarget.src = '/placeholder-design.svg';
-                  }}
-                />
-              </div>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Image Gallery */}
+          <div className="flex flex-col gap-4">
+            <div className="bg-white rounded-xl shadow-lg p-4">
+              <img 
+                src={mainImage || '/default-tshirt.svg'} 
+                alt={designedTshirt.name}
+                className="w-full h-[400px] lg:h-[500px] object-contain rounded-lg"
+              />
             </div>
-            
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={handleAddToCart}
-                disabled={addingToCart || !selectedSize || !selectedColor}
-                className={`flex-1 py-3 px-6 rounded-xl font-semibold text-lg transition-all duration-300 shadow-lg ${
-                  addingToCart || !selectedSize || !selectedColor
-                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-105 hover:shadow-xl'
-                }`}
-              >
-                {addingToCart ? 'Adding to Cart...' : 'Add to Cart'}
-              </button>
-              {user?.role === 'ADMIN' && (
-                <Link
-                  to={`/edit-designed-tshirt/${designedTshirt.id}`}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 px-6 rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-lg text-center"
-                >
-                  Edit Design
-                </Link>
-              )}
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                designedTshirt.imageUrl,
+                designedTshirt.design?.imageUrl,
+                designedTshirt.tshirt?.imageUrl
+              ].map((img, idx) => (
+                img && <img key={idx} src={img} alt={`thumbnail-${idx}`} className="w-full h-24 object-contain rounded-lg cursor-pointer border-2 hover:border-pink-500" onClick={() => setMainImage(img)} />
+              ))}
             </div>
           </div>
 
-          {/* Details Section */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">{designedTshirt.name}</h1>
-              
-              <div className="text-3xl font-bold text-blue-600 mb-6">
-                ${designedTshirt.price?.toFixed(2)}
+          {/* Product Info */}
+          <div>
+            <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-2">{designedTshirt.name}</h1>
+            <p className="text-gray-500 mb-4">{designedTshirt.description}</p>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex text-yellow-400"><FaStar /><FaStar /><FaStar /><FaStar /><FaStar /></div>
+              <span className="text-gray-600">(125 Reviews)</span>
+            </div>
+
+            <div className="flex items-baseline gap-3 mb-6">
+              <span className="text-3xl font-bold text-pink-600">
+                {typeof designedTshirt.price === 'number' && designedTshirt.price !== null
+                  ? `₹${designedTshirt.price.toFixed(2)}`
+                  : 'N/A'}
+              </span>
+              <span className="text-gray-400 line-through">
+                {typeof designedTshirt.price === 'number' && designedTshirt.price !== null
+                  ? `₹${(designedTshirt.price * 1.4).toFixed(2)}`
+                  : ''}
+              </span>
+              <span className="text-green-500 font-bold">(30% OFF)</span>
+            </div>
+
+            {/* Size Selector */}
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg mb-2">Select Size</h3>
+              <div className="flex flex-wrap gap-3">
+                {availableSizes.map(size => (
+                  <button 
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`px-6 py-2 border-2 rounded-lg font-bold transition-all duration-200 ${selectedSize === size ? 'bg-pink-500 text-white border-pink-500' : 'border-gray-300 hover:border-pink-400'}`}
+                  >
+                    {size}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {designedTshirt.description && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Description</h3>
-                  <p className="text-gray-600 leading-relaxed">{designedTshirt.description}</p>
+            {/* Actions: Desktop */}
+            <div className="hidden md:flex items-center gap-4">
+              <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2">
+                <FaShoppingCart /> Add to Cart
+              </button>
+              <button className="bg-white text-pink-500 border-2 border-pink-500 font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-pink-50 transition-all flex items-center justify-center gap-2">
+                <FaHeart /> Wishlist
+              </button>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="bg-white p-4 rounded-xl shadow-sm mt-8 border">
+              <div className="flex items-center gap-4 text-sm">
+                <FaTags className="text-green-500 w-6 h-6" />
+                <div>
+                  <h4 className="font-bold">Best Price Guaranteed</h4>
+                  <p className="text-gray-600">Find a lower price and we'll match it.</p>
                 </div>
-              )}
-
-              {/* Specifications */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                {designedTshirt.brand && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Brand</span>
-                    <p className="text-gray-900">{designedTshirt.brand.name}</p>
-                  </div>
-                )}
-                
-                {designedTshirt.color && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Color</span>
-                    <p className="text-gray-900">{designedTshirt.color.name}</p>
-                  </div>
-                )}
-
-                {designedTshirt.material && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Material</span>
-                    <p className="text-gray-900">{designedTshirt.material}</p>
-                  </div>
-                )}
-
-                {designedTshirt.fit && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Fit</span>
-                    <p className="text-gray-900">{designedTshirt.fit}</p>
-                  </div>
-                )}
-
-                {designedTshirt.sleeveType && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Sleeve Type</span>
-                    <p className="text-gray-900">{designedTshirt.sleeveType}</p>
-                  </div>
-                )}
-
-                {designedTshirt.neckType && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Neck Type</span>
-                    <p className="text-gray-900">{designedTshirt.neckType}</p>
-                  </div>
-                )}
-
-                {designedTshirt.gender && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Gender</span>
-                    <p className="text-gray-900">{designedTshirt.gender}</p>
-                  </div>
-                )}
-
-                {designedTshirt.stock !== null && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Stock</span>
-                    <p className="text-gray-900">{designedTshirt.stock} units</p>
-                  </div>
-                )}
               </div>
-
-              {/* Sizes */}
-              {designedTshirt.sizes && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Select Size</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.isArray(designedTshirt.sizes) ? (
-                      designedTshirt.sizes.map((size, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setSelectedSize(size)}
-                          className={`px-4 py-2 rounded-lg border-2 font-medium transition-all duration-200 ${
-                            selectedSize === size
-                              ? 'border-blue-600 bg-blue-600 text-white'
-                              : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-                          }`}
-                        >
-                          {size}
-                        </button>
-                      ))
-                    ) : (
-                      designedTshirt.sizes.split(',').map((size, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setSelectedSize(size.trim())}
-                          className={`px-4 py-2 rounded-lg border-2 font-medium transition-all duration-200 ${
-                            selectedSize === size.trim()
-                              ? 'border-blue-600 bg-blue-600 text-white'
-                              : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-                          }`}
-                        >
-                          {size.trim()}
-                        </button>
-                      ))
-                    )}
-                  </div>
+              <div className="flex items-center gap-4 text-sm mt-3">
+                <FaShieldAlt className="text-blue-500 w-6 h-6" />
+                <div>
+                  <h4 className="font-bold">100% Original Guarantee</h4>
+                  <p className="text-gray-600">Authentic products sourced directly.</p>
                 </div>
-              )}
-
-              {/* Color Selection */}
-              {designedTshirt.color && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Select Color</h3>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={() => setSelectedColor(designedTshirt.color.name)}
-                      className={`px-4 py-2 rounded-lg border-2 font-medium transition-all duration-200 ${
-                        selectedColor === designedTshirt.color.name
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-                      }`}
-                    >
-                      {designedTshirt.color.name}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Tags */}
-              {designedTshirt.tags && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Tags</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.isArray(designedTshirt.tags) ? (
-                      designedTshirt.tags.map((tag, index) => (
-                      <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {tag}
-                      </span>
-                      ))
-                    ) : (
-                      designedTshirt.tags.split(',').map((tag, index) => (
-                        <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                          {tag.trim()}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Design Details */}
-              {designedTshirt.design && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Design Information</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-gray-700">
-                      <span className="font-medium">Design:</span> {designedTshirt.design.name}
-                    </p>
-                    {designedTshirt.customDesignName && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">Custom Name:</span> {designedTshirt.customDesignName}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Compression Info */}
-              {designedTshirt.compressionRatio && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Image Information</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-gray-700">
-                      <span className="font-medium">Compression Ratio:</span> {designedTshirt.compressionRatio}%
-                    </p>
-                    {designedTshirt.originalSize && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">Original Size:</span> {designedTshirt.originalSize} KB
-                      </p>
-                    )}
-                    {designedTshirt.compressedSize && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">Compressed Size:</span> {designedTshirt.compressedSize} KB
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Admin Info */}
-              {user?.role === 'ADMIN' && designedTshirt.createdBy && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Admin Information</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-gray-700">
-                      <span className="font-medium">Created by:</span> {designedTshirt.createdBy}
-                    </p>
-                    {designedTshirt.createdAt && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">Created:</span> {new Date(designedTshirt.createdAt).toLocaleDateString()}
-                      </p>
-                    )}
-                    {designedTshirt.updatedAt && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">Last updated:</span> {new Date(designedTshirt.updatedAt).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* You Might Also Like */}
+        <div className="mt-20">
+          <h2 className="text-2xl font-bold text-center mb-8">You Might Also Like</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {relatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Add to Cart Bar (Mobile) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white p-4 border-t-2 shadow-up z-40 flex gap-4">
+        <button className="flex-1 bg-white text-pink-500 border-2 border-pink-500 font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+          <FaHeart /> Wishlist
+        </button>
+        <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+          <FaShoppingCart /> Add to Cart
+        </button>
       </div>
     </div>
   );

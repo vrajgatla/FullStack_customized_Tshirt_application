@@ -1,673 +1,422 @@
 import React, { useState, useEffect, useRef } from 'react';
-import html2canvas from 'html2canvas';
 import { useAuth } from '../../contexts/AuthContext';
-import apiService from '../../utils/api';
+import { useCart } from '../../contexts/CartContext';
+import toast from 'react-hot-toast';
+import { FaTshirt, FaPalette, FaUpload, FaPlus, FaMinus, FaShoppingCart, FaSave } from 'react-icons/fa';
 
-function saveToCart(item) {
-  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-  cart.push(item);
-  localStorage.setItem('cart', JSON.stringify(cart));
-}
-
-const PREVIEW_WIDTH = 288;
-const PREVIEW_HEIGHT = 320;
+const PREVIEW_WIDTH = 400;
+const PREVIEW_HEIGHT = 480;
+const DESIGN_INITIAL_SIZE = 120;
 
 export default function CustomDesign() {
-  const { user, token } = useAuth();
+  const { isAdmin, isUser } = useAuth();
+  const { addToCart } = useCart();
   const [brands, setBrands] = useState([]);
-  const [brand, setBrand] = useState('');
   const [colors, setColors] = useState([]);
-  const [color, setColor] = useState('');
   const [genders, setGenders] = useState([]);
-  const [gender, setGender] = useState('');
   const [sizes, setSizes] = useState([]);
-  const [size, setSize] = useState('');
+
+  const [selectedBrand, setSelectedBrand] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedGender, setSelectedGender] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+
   const [designs, setDesigns] = useState([]);
-  const [design, setDesign] = useState(null);
-  const [upload, setUpload] = useState(null);
-  const [success, setSuccess] = useState(false);
-  const [tshirtZoom, setTshirtZoom] = useState(1);
+  const [selectedDesign, setSelectedDesign] = useState(null);
+  const [uploadedDesign, setUploadedDesign] = useState(null);
+  
+  const [designPos, setDesignPos] = useState({ x: PREVIEW_WIDTH / 2, y: PREVIEW_HEIGHT * 0.4 });
   const [designZoom, setDesignZoom] = useState(1);
-  const [page, setPage] = useState(0);
-  const [designPos, setDesignPos] = useState({ x: PREVIEW_WIDTH / 2, y: PREVIEW_HEIGHT * 0.5 });
-  const [dragging, setDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [downloadSuccess, setDownloadSuccess] = useState(false);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [savingAsDesigned, setSavingAsDesigned] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const [tshirtImg, setTshirtImg] = useState('/default-tshirt.svg');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const [loading, setLoading] = useState({
+    addToCart: false,
+    save: false
+  });
+
   const previewRef = useRef(null);
 
+  // Add state for multiple t-shirts and selected t-shirt
+  const [matchingTshirts, setMatchingTshirts] = useState([]);
+  const [selectedTshirt, setSelectedTshirt] = useState(null);
+
+  // Fetch initial data
   useEffect(() => {
-    fetch('/api/tshirts/genders').then(res => res.json()).then(data => {
+    // Fetch genders
+    fetch('/api/tshirts/genders')
+      .then(res => res.json())
+      .then(data => {
       setGenders(data);
-      setGender(data[0] || '');
-    });
-    fetch('/api/tshirts/sizes').then(res => res.json()).then(data => {
+        if (data.length > 0) setSelectedGender(data[0]);
+      })
+      .catch(() => toast.error('Could not load genders'));
+
+    // Fetch sizes
+    fetch('/api/tshirts/sizes')
+      .then(res => res.json())
+      .then(data => {
       setSizes(data);
-      setSize(data[0] || '');
-    });
-    fetch('/api/designs').then(res => res.json()).then(data => {
-      console.log('Designs API response:', data); // Debug log
-      const arr = Array.isArray(data) ? data : (data.content || []);
-      console.log('Processed designs array:', arr); // Debug log
-      setDesigns(arr);
-      setDesign(arr[0] ? `/api/designs/${arr[0].id}/image` : null);
-    }).catch(error => {
-      console.error('Error fetching designs:', error); // Debug log
-    });
+        if (data.length > 0) setSelectedSize(data[0]);
+      })
+      .catch(() => toast.error('Could not load sizes'));
+
+    // Fetch designs
+    fetch('/api/designs')
+      .then(res => res.json())
+      .then(data => {
+        const designsData = Array.isArray(data) ? data : (data.content || []);
+        setDesigns(designsData);
+      })
+      .catch(() => toast.error('Could not load designs'));
   }, []);
 
-  // Fetch available brands based on gender selection
+  // Fetch brands when gender changes
   useEffect(() => {
-    if (gender) {
-      fetch(`/api/tshirts/available-brands?gender=${encodeURIComponent(gender)}`)
+    if (selectedGender) {
+      fetch(`/api/tshirts/available-brands?gender=${encodeURIComponent(selectedGender)}`)
         .then(res => res.json())
         .then(data => {
           setBrands(data);
-          // Reset brand if current selection is not available
-          if (data.length > 0 && !data.find(b => b.name === brand)) {
-            setBrand(data[0].name);
-          } else if (data.length === 0) {
-            setBrand('');
+          if (data.length > 0) {
+            setSelectedBrand(data[0].name);
           }
         })
-        .catch(error => {
-          console.error('Error fetching available brands:', error);
-          setBrands([]);
-          setBrand('');
-        });
+        .catch(() => toast.error('Could not load brands'));
     }
-  }, [gender]);
+  }, [selectedGender]);
 
-  // Fetch available colors based on brand and gender selection
+  // Fetch colors when brand and gender change
   useEffect(() => {
-    if (brand && gender) {
-      fetch(`/api/tshirts/available-colors?brand=${encodeURIComponent(brand)}&gender=${encodeURIComponent(gender)}`)
+    if (selectedBrand && selectedGender) {
+      fetch(`/api/tshirts/available-colors?brand=${encodeURIComponent(selectedBrand)}&gender=${encodeURIComponent(selectedGender)}`)
         .then(res => res.json())
         .then(data => {
           setColors(data);
-          // Reset color if current selection is not available
-          if (data.length > 0 && !data.find(c => c.name === color)) {
-            setColor(data[0].name);
-          } else if (data.length === 0) {
-            setColor('');
+          if (data.length > 0) {
+            setSelectedColor(data[0].name);
           }
         })
-        .catch(error => {
-          console.error('Error fetching available colors:', error);
-          setColors([]);
-          setColor('');
-        });
-    } else if (brand) {
-      fetch(`/api/tshirts/available-colors?brand=${encodeURIComponent(brand)}`)
-        .then(res => res.json())
-        .then(data => {
-          setColors(data);
-          if (data.length > 0 && !data.find(c => c.name === color)) {
-            setColor(data[0].name);
-          } else if (data.length === 0) {
-            setColor('');
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching available colors:', error);
-          setColors([]);
-          setColor('');
-        });
-    } else if (gender) {
-      fetch(`/api/tshirts/available-colors?gender=${encodeURIComponent(gender)}`)
-        .then(res => res.json())
-        .then(data => {
-          setColors(data);
-          if (data.length > 0 && !data.find(c => c.name === color)) {
-            setColor(data[0].name);
-          } else if (data.length === 0) {
-            setColor('');
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching available colors:', error);
-          setColors([]);
-          setColor('');
-        });
+        .catch(() => toast.error('Could not load colors'));
     }
-  }, [brand, gender]);
+  }, [selectedBrand, selectedGender]);
 
-  const resetDesignPosition = () => {
-    // Position the design in the center of the t-shirt image
-    // The t-shirt image is centered with left: 50% and transform: translateX(-50%)
-    // The drag logic calculates position relative to the t-shirt center, so we need to match that
-    // Use a position that's clearly in the middle of the t-shirt chest area
-    setDesignPos({ 
-      x: PREVIEW_WIDTH / 2, 
-      y: PREVIEW_HEIGHT * 0.5  // Moved down to chest area
-    });
+  // Fetch t-shirts when options change
+  useEffect(() => {
+    if (selectedBrand && selectedColor && selectedGender) {
+      fetch(`/api/tshirts/byBrandColorGender?brand=${encodeURIComponent(selectedBrand)}&color=${encodeURIComponent(selectedColor)}&gender=${encodeURIComponent(selectedGender)}`)
+        .then(res => res.json())
+        .then(data => {
+          setMatchingTshirts(data);
+          if (data.length > 0) {
+            setSelectedTshirt(data[0]);
+          } else {
+            setSelectedTshirt(null);
+          }
+        })
+        .catch(() => {
+          setMatchingTshirts([]);
+          setSelectedTshirt(null);
+        });
+    } else {
+      setMatchingTshirts([]);
+      setSelectedTshirt(null);
+    }
+  }, [selectedBrand, selectedColor, selectedGender]);
+
+  // Use selectedTshirt's image for preview
+  useEffect(() => {
+    if (selectedTshirt) {
+      setTshirtImg(selectedTshirt.imageUrl || '/default-tshirt.svg');
+    } else {
+      setTshirtImg('/default-tshirt.svg');
+    }
+  }, [selectedTshirt]);
+
+  const handleDesignSelect = (design) => {
+    setSelectedDesign(design);
+    setUploadedDesign(null);
+    resetDesignPosition();
   };
 
   const handleUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setUpload(URL.createObjectURL(e.target.files[0]));
-      setDesign(null);
+      const file = e.target.files[0];
+      if(file.size > 2 * 1024 * 1024) {
+        toast.error("File is too large! Maximum size is 2MB.");
+        return;
+      }
+      setUploadedDesign(URL.createObjectURL(file));
+      setSelectedDesign(null);
       resetDesignPosition();
+      toast.success("Design uploaded!");
+    }
+  };
+  
+  const resetDesignPosition = () => {
+    setDesignPos({ x: PREVIEW_WIDTH / 2, y: PREVIEW_HEIGHT * 0.4 });
+    setDesignZoom(1);
+  };
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - designPos.x,
+      y: e.clientY - designPos.y
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      const x = e.clientX - dragStart.x;
+      const y = e.clientY - dragStart.y;
+      setDesignPos({ x, y });
     }
   };
 
-  const generateHighQualityImage = async () => {
-    try {
-      // Create a canvas with the exact preview dimensions
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const generateFinalImage = async () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
-      // Set canvas size (2x for high quality)
-      canvas.width = PREVIEW_WIDTH * 2;
-      canvas.height = PREVIEW_HEIGHT * 2;
-      
-      // Scale the context for high quality
-      ctx.scale(2, 2);
-      
-      // Fill background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
-      
-      // Load and draw t-shirt image
-      if (tshirtImg) {
+    const scale = 2; // For higher resolution
+    
+    canvas.width = PREVIEW_WIDTH * scale;
+    canvas.height = PREVIEW_HEIGHT * scale;
+    ctx.scale(scale, scale);
+
         const tshirtImage = new Image();
         tshirtImage.crossOrigin = 'anonymous';
-        
-        await new Promise((resolve, reject) => {
-          tshirtImage.onload = resolve;
-          tshirtImage.onerror = reject;
           tshirtImage.src = tshirtImg;
-        });
-        
-        // Calculate t-shirt position (centered)
-        const tshirtX = (PREVIEW_WIDTH - PREVIEW_WIDTH * tshirtZoom) / 2;
-        const tshirtY = (PREVIEW_HEIGHT - PREVIEW_HEIGHT * tshirtZoom) / 2;
-        
-        // Draw t-shirt with zoom
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(
-          tshirtImage,
-          tshirtX, tshirtY,
-          PREVIEW_WIDTH * tshirtZoom,
-          PREVIEW_HEIGHT * tshirtZoom
-        );
-        ctx.restore();
-      }
-      
-      // Load and draw design image
-      if (design || upload) {
+    await tshirtImage.decode();
+    ctx.drawImage(tshirtImage, 0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+    
+    const designUrl = uploadedDesign || (selectedDesign?.imageUrl);
+    if (designUrl) {
         const designImage = new Image();
         designImage.crossOrigin = 'anonymous';
-        
-        await new Promise((resolve, reject) => {
-          designImage.onload = resolve;
-          designImage.onerror = reject;
-          designImage.src = upload || design;
-        });
-        
-        // Calculate design position (using the same logic as the preview)
-        const designSize = 110 * designZoom;
-        const designX = designPos.x - designSize / 2;
-        const designY = designPos.y - designSize / 2;
-        
-        // Draw design
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(
-          designImage,
-          designX, designY,
-          designSize,
-          designSize
-        );
-        ctx.restore();
-      }
+      designImage.src = designUrl;
+      await designImage.decode();
       
-      return canvas.toDataURL('image/png', 1.0);
-    } catch (error) {
-      console.error('Error generating image:', error);
-      return null;
+      const designSize = DESIGN_INITIAL_SIZE * designZoom;
+      const x = designPos.x - designSize / 2;
+      const y = designPos.y - designSize / 2;
+      
+      ctx.drawImage(designImage, x, y, designSize, designSize);
     }
+    return canvas.toDataURL('image/png');
   };
 
   const handleAddToCart = async () => {
-    setAddingToCart(true);
-    let designName = 'Uploaded Design';
-    let designId = 'upload-' + Date.now();
-    if (upload) {
-      designName = 'Uploaded Design';
-      designId = 'upload-' + Date.now();
-    } else if (design) {
-      const found = designs.find((d) => `/api/designs/${d.id}/image` === design);
-      if (found) {
-        designName = found.name;
-        designId = 'gallery-' + found.id;
-      }
+    if (!selectedBrand || !selectedColor || !selectedGender || !selectedSize) {
+      toast.error("Please select all T-shirt options.");
+      return;
     }
-    
-    let combinedImage = '';
-    try {
-      combinedImage = await generateHighQualityImage();
-    } catch (e) {
-      console.error('Error generating image:', e);
-    }
-    
-    const item = {
-      brand,
-      color,
-      gender,
-      size,
-      design: upload || design,
-      designName,
-      designId,
-      combinedImage,
-      tshirtImg,
-      id: Date.now(),
-      name: `${brand} ${gender} Custom Tee - ${designName}`,
-      price: 24.99,
-    };
-    saveToCart(item);
-    setSuccess(true);
-    setAddingToCart(false);
-    setTimeout(() => setSuccess(false), 2000);
-  };
-
-  const handleDownload = async () => {
-    try {
-      const imageDataUrl = await generateHighQualityImage();
-      if (imageDataUrl) {
-        const link = document.createElement('a');
-        link.download = `${brand}-custom-tshirt.png`;
-        link.href = imageDataUrl;
-        link.click();
-        setDownloadSuccess(true);
-        setTimeout(() => setDownloadSuccess(false), 2000);
-      } else {
-        console.error('Failed to generate image');
-      }
-    } catch (error) {
-      console.error('Error downloading image:', error);
-    }
-  };
-
-  const handleSaveAsDesignedTshirt = async () => {
-    if (!user || user.role !== 'ADMIN') {
-      alert('Only admins can save designed t-shirts');
+    if (!selectedDesign && !uploadedDesign) {
+      toast.error("Please select or upload a design.");
       return;
     }
 
-    setSavingAsDesigned(true);
+    setLoading(prev => ({...prev, addToCart: true}));
     try {
-      // Generate the high-quality image
-      const imageDataUrl = await generateHighQualityImage();
-      if (!imageDataUrl) {
-        throw new Error('Failed to generate image');
-      }
-
-      // Convert data URL to blob
-      const response = await fetch(imageDataUrl);
-      const blob = await response.blob();
-      const file = new File([blob], 'designed-tshirt.png', { type: 'image/png' });
-
-      // Prepare the designed t-shirt data
-      const designedTshirtData = {
-        name: `${brand} ${gender} Custom T-Shirt - ${design ? 'Gallery Design' : 'Custom Upload'}`,
-        brandId: brands.find(b => b.name === brand)?.id,
-        colorId: colors.find(c => c.name === color)?.id,
-        designId: design ? designs.find(d => `/api/designs/${d.id}/image` === design)?.id : null,
-        sizes: [size],
-        gender: gender,
-        material: 'Cotton',
-        fit: 'Regular',
-        sleeveType: 'Short Sleeve',
-        neckType: 'Round Neck',
-        price: 24.99,
-        stock: 100,
-        featured: false,
-        tags: `${brand}, ${color}, ${gender}, custom, designed`,
-        description: `Custom designed ${gender.toLowerCase()} t-shirt with ${brand} brand in ${color} color`,
-        customDesignName: upload ? 'Custom Uploaded Design' : null,
-        designZoom: designZoom,
-        designPositionX: Math.round(designPos.x),
-        designPositionY: Math.round(designPos.y),
-        tshirtZoom: tshirtZoom.toString()
+      const finalImage = await generateFinalImage();
+      const cartItem = {
+        name: `Custom \"${selectedDesign?.name || 'Uploaded'}\" Tee`,
+        price: 499.00,
+        quantity: 1,
+        imageUrl: finalImage,
+        brand: selectedBrand,
+        color: selectedColor,
+        gender: selectedGender,
+        size: selectedSize,
+        design: selectedDesign || { id: `upload-${Date.now()}`, name: 'Custom Upload' },
+        type: 'custom'
       };
-
-      // Save to backend
-      await apiService.saveDesignedTshirt(designedTshirtData, file, user.username, token);
       
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      addToCart(cartItem);
+      toast.success("Added to cart!");
     } catch (error) {
-      console.error('Error saving designed t-shirt:', error);
-      alert('Failed to save designed t-shirt: ' + error.message);
+      console.error("Error adding to cart:", error);
+      toast.error("Could not add to cart.");
     } finally {
-      setSavingAsDesigned(false);
+      setLoading(prev => ({...prev, addToCart: false}));
     }
   };
 
-  // For t-shirt image, fetch from backend based on brand/color/gender selection
-  const [tshirtImg, setTshirtImg] = useState('');
-  const [tshirtImgError, setTshirtImgError] = useState('');
-  useEffect(() => {
-    if (brand && color && gender) {
-      setTshirtImgError('');
-      fetch(`/api/tshirts/preview?brand=${encodeURIComponent(brand)}&color=${encodeURIComponent(color)}&gender=${encodeURIComponent(gender)}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log('T-shirt preview API response:', data); // Debug log
-          if (data.imageEndpoint) {
-            setTshirtImg(data.imageEndpoint);
-            setTshirtImgError('');
-          } else {
-            setTshirtImg('');
-            setTshirtImgError('No t-shirt image found for the selected brand, color, and gender.');
-          }
-        })
-        .catch((err) => {
-          setTshirtImg('');
-          setTshirtImgError('Error fetching t-shirt image.');
-          console.error('Error fetching t-shirt preview:', err);
-        });
-    } else {
-      setTshirtImg('');
-      setTshirtImgError('Please select brand, color, and gender to see t-shirt preview.');
+  const handleSave = async () => {
+    if (!selectedBrand || !selectedColor || !selectedGender || !selectedSize) {
+      toast.error("Please select all T-shirt options before saving.");
+      return;
     }
-  }, [brand, color, gender]);
-
-  // Pagination for gallery
-  const itemsPerPage = 30;
-  const totalPages = Math.ceil(designs.length / itemsPerPage);
-  const pagedGallery = designs.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
-
-  // Next/Previous design handlers
-  const currentDesignIdx = pagedGallery.findIndex(d => `/api/designs/${d.id}/image` === design);
-  const handleNextDesign = () => {
-    if (currentDesignIdx < pagedGallery.length - 1) {
-      setDesign(`/api/designs/${pagedGallery[currentDesignIdx + 1].id}/image`);
-      setUpload(null);
-      resetDesignPosition();
-    } else if (page < totalPages - 1) {
-      // Go to next page and select the first design
-      setPage(page + 1);
-      setTimeout(() => {
-        const nextPageGallery = designs.slice((page + 1) * itemsPerPage, (page + 2) * itemsPerPage);
-        if (nextPageGallery.length > 0) {
-          setDesign(`/api/designs/${nextPageGallery[0].id}/image`);
-          setUpload(null);
-          resetDesignPosition();
-        }
-      }, 0);
+    if (!selectedDesign && !uploadedDesign) {
+      toast.error("Please select or upload a design to save.");
+      return;
     }
-  };
-  const handlePrevDesign = () => {
-    if (currentDesignIdx > 0) {
-      setDesign(`/api/designs/${pagedGallery[currentDesignIdx - 1].id}/image`);
-      setUpload(null);
-      resetDesignPosition();
-    } else if (page > 0) {
-      // Go to previous page and select the last design
-      setPage(page - 1);
-      setTimeout(() => {
-        const prevPageGallery = designs.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-        if (prevPageGallery.length > 0) {
-          setDesign(`/api/designs/${prevPageGallery[prevPageGallery.length - 1].id}/image`);
-          setUpload(null);
-          resetDesignPosition();
-        }
-      }, 0);
+
+    setLoading(prev => ({...prev, save: true}));
+    try {
+      const finalImage = await generateFinalImage();
+      const finalImageBlob = await (await fetch(finalImage)).blob();
+      const formData = new FormData();
+      
+      formData.append('name', `Custom ${selectedDesign?.name || 'Design'}`);
+      formData.append('brandName', selectedBrand);
+      formData.append('colorName', selectedColor);
+      formData.append('gender', selectedGender);
+      formData.append('size', selectedSize);
+      formData.append('designId', selectedDesign?.id || null);
+      formData.append('image', finalImageBlob, 'custom-design.png');
+      
+      const response = await fetch('/api/designed-tshirts', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) throw new Error('Failed to save design');
+      
+      toast.success("Your design has been saved!");
+    } catch (error) {
+      console.error("Failed to save design:", error);
+      toast.error("Could not save your design.");
+    } finally {
+      setLoading(prev => ({...prev, save: false}));
     }
   };
 
-  const handleNextColor = () => {
-    const idx = colors.findIndex(c => c.name === color);
-    if (colors.length > 0) {
-      setColor(colors[(idx + 1) % colors.length].name);
-    }
+  const handleDownload = async () => {
+    const finalImage = await generateFinalImage();
+    const link = document.createElement('a');
+    link.href = finalImage;
+    link.download = `custom-tshirt-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
-
-  // Improved drag logic for design
-  useEffect(() => {
-    if (!dragging) return;
-    
-    const handleMouseMove = (e) => {
-      if (!previewRef.current) return;
-      
-      const rect = previewRef.current.getBoundingClientRect();
-      
-      // Calculate the actual t-shirt image position
-      // The t-shirt image is centered with left: 50% and transform: translateX(-50%)
-      const tshirtLeft = rect.width / 2; // Center of the container
-      
-      // Calculate mouse position relative to the t-shirt image center
-      const mouseX = e.clientX - rect.left;
-      const relativeX = mouseX - tshirtLeft;
-      
-      // Convert to preview coordinates
-      const scaleX = PREVIEW_WIDTH / rect.width;
-      let x = (relativeX + PREVIEW_WIDTH / 2) * scaleX; // Adjust for t-shirt centering
-      let y = (e.clientY - rect.top) * (PREVIEW_HEIGHT / rect.height);
-      
-      // Calculate the actual design size (base size * zoom)
-      const designSize = 110 * designZoom;
-      const halfDesignSize = designSize / 2;
-      
-      // Constrain to preview area with proper design size
-      x = Math.max(halfDesignSize, Math.min(PREVIEW_WIDTH - halfDesignSize, x));
-      y = Math.max(halfDesignSize, Math.min(PREVIEW_HEIGHT - halfDesignSize, y));
-      
-      setDesignPos({ x, y });
-    };
-    
-    const handleMouseUp = () => setDragging(false);
-    
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [dragging, designZoom]);
 
   return (
-    <div className="w-full min-h-screen max-w-5xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 bg-gradient-to-br from-blue-50 via-purple-50 to-white animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 mb-6 md:mb-10 tracking-tight">Customize Your T-Shirt</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
-        {/* Options */}
-        <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8">
-          <div className="mb-6">
-            <label className="block mb-3 font-bold text-lg">Select Brand:</label>
-            <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={brand} onChange={e => setBrand(e.target.value)}>
-              {brands.map(b => <option key={b.name}>{b.name}</option>)}
-            </select>
-            
-            <label className="block mb-3 font-bold text-lg">Select Gender:</label>
-            <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={gender} onChange={e => setGender(e.target.value)}>
-              {genders.map(g => <option key={g}>{g}</option>)}
-            </select>
-            
-            <label className="block mb-3 font-bold text-lg">Select Color:</label>
-            {colors.length > 0 ? (
-              <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={color} onChange={e => setColor(e.target.value)}>
-                {colors.map(c => (
-                  <option key={c.name} value={c.name}>
-                    {c.name} ✓
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="w-full p-3 border-2 border-red-200 rounded-xl shadow mb-4 font-medium bg-red-50 text-red-600">
-                No colors available for selected brand and gender
-              </div>
-            )}
-            
-            <label className="block mb-3 font-bold text-lg">Select Size:</label>
-            <select className="w-full p-3 border-2 border-blue-200 rounded-xl shadow mb-4 font-medium" value={size} onChange={e => setSize(e.target.value)}>
-              {sizes.map(s => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="mb-6">
-            <div className="font-bold text-lg mb-3">Designs</div>
-            <div className="mb-3" style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: 8 }}>
-              {console.log('Rendering designs section. pagedGallery:', pagedGallery, 'designs:', designs, 'page:', page)} {/* Debug log */}
-              {pagedGallery.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
-                  <p>No designs available. Please upload some designs first.</p>
-                </div>
-              ) : (
-                pagedGallery.map((d, idx) => (
-                  <div key={idx} className={`border-2 rounded-xl p-2 mb-4 flex flex-col items-center cursor-pointer hover:scale-105 hover:shadow-xl transition-all duration-300 ${design === `/api/designs/${d.id}/image` ? 'ring-2 ring-blue-500' : ''}`} onClick={() => { setDesign(`/api/designs/${d.id}/image`); setUpload(null); resetDesignPosition(); }}>
-                    <div className="w-full h-32 flex items-center justify-center bg-gray-50 rounded mb-2">
-                      <img 
-                        key={`design-${d.id}-thumb`}
-                        src={`/api/designs/${d.id}/thumbnail`} 
-                        alt={d.name} 
-                        className="max-w-full max-h-full object-contain" 
-                        onError={(e) => {
-                          // If thumbnail fails, try the main image
-                          if (e.target.src.includes('/thumbnail')) {
-                            e.target.src = `/api/designs/${d.id}/image`;
-                          } else {
-                            // If main image also fails, use placeholder
-                            e.target.src = '/placeholder-design.svg';
-                          }
-                        }} 
-                      />
-                    </div>
-                    <span className="text-base text-gray-700 font-semibold text-center break-words">{d.name}</span>
-                    {d.compressionRatio && (
-                      <div className="text-xs text-green-600 mt-1">
-                        Compressed: {d.compressionRatio}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-4 mt-2">
-                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className={`px-3 py-1 rounded ${page === 0 ? 'bg-gray-200 text-gray-400' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}>Prev</button>
-                <span className="px-2 text-sm font-semibold">Page {page + 1} of {totalPages}</span>
-                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1} className={`px-3 py-1 rounded ${page === totalPages - 1 ? 'bg-gray-200 text-gray-400' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}>Next</button>
-              </div>
-            )}
-            <label className="block mb-2 font-bold text-lg mt-4">Or upload your own design:</label>
-            <input type="file" accept="image/*" onChange={handleUpload} className="block w-full text-sm text-gray-500" />
-          </div>
+    <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+      {/* LEFT - PREVIEW */}
+      <div className="bg-gray-100 rounded-2xl shadow-inner p-4 flex flex-col items-center justify-center sticky top-24 h-[600px]">
+        <div 
+          ref={previewRef}
+          className="relative overflow-hidden" 
+          style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT }}
+        >
+          <img src={tshirtImg} alt="T-shirt preview" className="w-full h-full object-contain" />
+          {(selectedDesign || uploadedDesign) && (
+            <div
+              className="absolute cursor-grab active:cursor-grabbing"
+              style={{
+                top: designPos.y,
+                left: designPos.x,
+                width: `${DESIGN_INITIAL_SIZE * designZoom}px`,
+                height: `${DESIGN_INITIAL_SIZE * designZoom}px`,
+                transform: 'translate(-50%, -50%)',
+                backgroundImage: `url(${uploadedDesign || selectedDesign.imageUrl})`,
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+              }}
+              onMouseDown={handleMouseDown}
+            />
+          )}
         </div>
-        {/* Preview */}
-        <div className="flex flex-col items-center bg-white rounded-2xl shadow-2xl p-4 sm:p-8 mt-6 md:mt-0">
-          <div className="font-bold mb-2 sm:mb-3 text-lg sm:text-xl text-blue-700">Preview</div>
-          <div 
-            ref={previewRef}
-            id="tshirt-preview-container" 
-            className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg mx-auto" 
-            style={{ height: PREVIEW_HEIGHT, background: '#fff', borderRadius: '1rem', overflow: 'hidden' }}
-          >
-            {/* Realistic T-shirt image as background */}
-            {tshirtImg ? (
-              <img
-                key={tshirtImg}
-                src={tshirtImg}
-                alt="T-shirt preview"
-                className="absolute"
-                style={{ 
-                  width: PREVIEW_WIDTH, 
-                  height: PREVIEW_HEIGHT, 
-                  left: '50%', 
-                  top: 0, 
-                  zIndex: 1, 
-                  borderRadius: '1rem', 
-                  objectFit: 'contain', 
-                  transform: `translateX(-50%) scale(${tshirtZoom})` 
-                }}
-                onError={e => { e.currentTarget.style.display = 'none'; setTshirtImgError('Failed to load t-shirt image.'); }}
-                onLoad={() => setTshirtImgError('')}
-              />
-            ) : (
-              <div className="absolute flex items-center justify-center w-full h-full text-gray-400 text-center z-10" style={{ left: '50%', top: 0, width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT, borderRadius: '1rem', background: '#f3f4f6', transform: 'translateX(-50%)' }}>
-                <span>{tshirtImgError || 'No t-shirt image available.'}</span>
+        <div className="flex items-center gap-4 mt-4 bg-white p-2 rounded-full shadow">
+          <button onClick={() => setDesignZoom(z => Math.max(0.5, z - 0.1))} className="p-2 rounded-full hover:bg-gray-200"><FaMinus /></button>
+          <span className="font-semibold text-gray-700">Zoom</span>
+          <button onClick={() => setDesignZoom(z => Math.min(3, z + 0.1))} className="p-2 rounded-full hover:bg-gray-200"><FaPlus /></button>
+        </div>
+      </div>
+
+      {/* RIGHT - CONTROLS */}
+      <div className="flex flex-col gap-8">
+        {/* T-Shirt Options */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3"><FaTshirt className="text-pink-500" /> T-Shirt Options</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="font-semibold text-gray-600 block mb-1">Gender</label>
+              <select value={selectedGender} onChange={e => setSelectedGender(e.target.value)} className="w-full p-2 border rounded-lg">
+                {genders.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
               </div>
-            )}
-            {/* Overlay design, draggable and zoomable */}
-            {(design || upload) && (
-              <img
-                src={upload || design}
-                alt="Design preview"
-                className="absolute cursor-move"
-                style={{
-                  top: designPos.y,
-                  left: '50%',
-                  width: 110 * designZoom,
-                  height: 110 * designZoom,
-                  transform: `translateX(-50%) translateY(-50%) translateX(${designPos.x - PREVIEW_WIDTH / 2}px)`,
-                  objectFit: 'contain',
-                  objectPosition: 'center',
-                  zIndex: 2,
-                  borderRadius: '0.5rem',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-                  backgroundColor: 'transparent',
-                  imageRendering: 'crisp-edges',
-                  maxWidth: 'none',
-                  maxHeight: 'none',
-                }}
-                onError={e => e.currentTarget.style.display = 'none'}
-                onMouseDown={e => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onLoad={(e) => {
-                  // Ensure consistent sizing after image loads
-                  e.target.style.width = `${110 * designZoom}px`;
-                  e.target.style.height = `${110 * designZoom}px`;
-                }}
-              />
-            )}
+            <div>
+              <label className="font-semibold text-gray-600 block mb-1">Brand</label>
+              <select value={selectedBrand} onChange={e => setSelectedBrand(e.target.value)} className="w-full p-2 border rounded-lg">
+                {brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+            </select>
           </div>
-          {/* Zoom Controls below preview */}
-          <div className="flex gap-8 mb-4 items-end">
-            <div className="flex flex-col items-center">
-              <span className="text-xs text-gray-600 mb-1">T-shirt Zoom</span>
-              <div className="flex gap-2">
-                <button onClick={() => setTshirtZoom(z => Math.max(0.8, z - 0.05))} className="px-2 py-1 bg-blue-100 rounded hover:bg-blue-200">-</button>
-                <span className="px-2">{(tshirtZoom * 100).toFixed(0)}%</span>
-                <button onClick={() => setTshirtZoom(z => Math.min(1.3, z + 0.05))} className="px-2 py-1 bg-blue-100 rounded hover:bg-blue-200">+</button>
+            <div>
+              <label className="font-semibold text-gray-600 block mb-1">Color</label>
+              <select value={selectedColor} onChange={e => setSelectedColor(e.target.value)} className="w-full p-2 border rounded-lg">
+                {colors.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="font-semibold text-gray-600 block mb-1">Size</label>
+              <select value={selectedSize} onChange={e => setSelectedSize(e.target.value)} className="w-full p-2 border rounded-lg">
+                {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              </div>
+          </div>
+          {matchingTshirts.length > 1 && (
+            <div className="mt-4">
+              <h3 className="font-semibold text-gray-700 mb-2">Multiple t-shirts found. Please select one:</h3>
+              <div className="flex gap-4 flex-wrap">
+                {matchingTshirts.map((t, idx) => (
+                  <div key={t.id} className={`border rounded-lg p-2 flex flex-col items-center cursor-pointer ${selectedTshirt?.id === t.id ? 'border-pink-500' : 'border-gray-200'}`}
+                    onClick={() => setSelectedTshirt(t)}>
+                    <img src={t.imageUrl || '/default-tshirt.svg'} alt={t.name} className="w-20 h-20 object-contain rounded mb-1" />
+                    <span className="text-xs text-gray-600">{t.name || `T-shirt #${idx + 1}`}</span>
+                    <button className={`mt-2 px-3 py-1 rounded text-xs font-bold ${selectedTshirt?.id === t.id ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-700'}`}>Select</button>
+        </div>
+                ))}
               </div>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs text-gray-600 mb-1">Design Zoom</span>
-              <div className="flex gap-2">
-                <button onClick={() => setDesignZoom(z => Math.max(0.5, z - 0.05))} className="px-2 py-1 bg-purple-100 rounded hover:bg-purple-200">-</button>
-                <span className="px-2">{(designZoom * 100).toFixed(0)}%</span>
-                <button onClick={() => setDesignZoom(z => Math.min(2.0, z + 0.05))} className="px-2 py-1 bg-purple-100 rounded hover:bg-purple-200">+</button>
+          )}
+        </div>
+
+        {/* Design Options */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3"><FaPalette className="text-purple-500" /> Choose a Design</h2>
+          <div className="mb-4">
+            <label htmlFor="design-upload" className="w-full text-center cursor-pointer bg-gray-100 hover:bg-gray-200 border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center gap-2">
+              <FaUpload className="text-2xl text-gray-500"/>
+              <span className="font-semibold text-gray-700">Upload Your Own Design</span>
+              <span className="text-xs text-gray-500">PNG, JPG up to 2MB</span>
+            </label>
+            <input id="design-upload" type="file" accept="image/png, image/jpeg" className="hidden" onChange={handleUpload} />
+          </div>
+          <div className="relative">
+            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              {designs.map(d => (
+                <div key={d.id} onClick={() => handleDesignSelect(d)} className={`cursor-pointer border-4 rounded-lg flex-shrink-0 w-24 h-24 ${selectedDesign?.id === d.id ? 'border-pink-500' : 'border-transparent'}`}>
+                  <img src={d.imageUrl} alt={d.name} className="w-full h-full object-contain rounded-md"/>
               </div>
+              ))}
             </div>
-            {/* Next Color Button */}
-            <button onClick={handleNextColor} className="ml-4 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold shadow hover:bg-green-200 transition">Next Color</button>
           </div>
-          {/* Next/Previous Design Buttons below zoom controls */}
-          <div className="flex justify-center gap-4 mb-6">
-            <button onClick={handlePrevDesign} disabled={currentDesignIdx <= 0} className="px-4 py-2 rounded bg-gray-100 text-lg font-bold hover:bg-blue-100 disabled:opacity-50">{'<- Previous Design'}</button>
-            <button onClick={handleNextDesign} disabled={currentDesignIdx >= pagedGallery.length - 1} className="px-4 py-2 rounded bg-gray-100 text-lg font-bold hover:bg-blue-100 disabled:opacity-50">{'Next Design ->'}</button>
           </div>
-          <div className="mt-6 w-full flex flex-col items-center">
-            <button onClick={handleAddToCart} disabled={addingToCart} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:scale-105 hover:bg-blue-700 hover:shadow-2xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed">{addingToCart ? 'Adding...' : 'Add to Cart'}</button>
-            <button onClick={handleDownload} className="mt-4 bg-green-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:scale-105 hover:bg-green-700 hover:shadow-2xl transition-all duration-300">Download Image</button>
-            {user && user.role === 'ADMIN' && (
-              <button 
-                onClick={handleSaveAsDesignedTshirt} 
-                disabled={savingAsDesigned} 
-                className="mt-4 bg-purple-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:scale-105 hover:bg-purple-700 hover:shadow-2xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {savingAsDesigned ? 'Saving...' : 'Save as Designed T-Shirt'}
+        
+        {/* Actions */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Finalize</h2>
+          <div className="flex flex-col gap-3">
+            <button onClick={handleAddToCart} disabled={loading.addToCart} className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform disabled:opacity-50">
+              <FaShoppingCart /> {loading.addToCart ? 'Adding...' : 'Add to Cart'}
+            </button>
+            <button onClick={handleDownload} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors">
+              Download Design
+            </button>
+            {isAdmin && isAdmin() && (
+              <button onClick={handleSave} disabled={loading.save} className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors disabled:opacity-50">
+                <FaSave /> {loading.save ? 'Saving...' : 'Save Design'}
               </button>
             )}
-            {downloadSuccess && <div className="mt-2 text-green-600 font-semibold">Image downloaded!</div>}
-            {saveSuccess && <div className="mt-2 text-purple-600 font-semibold">Designed t-shirt saved successfully!</div>}
-            {success && <div className="mt-4 text-green-600 font-semibold">Added to cart!</div>}
           </div>
         </div>
       </div>

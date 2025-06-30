@@ -100,18 +100,10 @@ export default function ManageDesigns() {
         {designs.map(design => (
           <div key={design.id} className="border rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center">
             <img 
-              src={`/api/designs/${design.id}/thumbnail`} 
+              src={design.thumbnailUrl || design.imageUrl || '/placeholder-design.svg'} 
               alt={design.name} 
               className="w-24 h-24 object-contain rounded border mb-2 sm:mb-0" 
-              onError={(e) => {
-                // If thumbnail fails, try the main image
-                if (e.target.src.includes('/thumbnail')) {
-                  e.target.src = `/api/designs/${design.id}/image`;
-                } else {
-                  // If main image also fails, hide the image
-                  e.currentTarget.style.display = 'none';
-                }
-              }} 
+              onError={e => { e.currentTarget.src = '/placeholder-design.svg'; }} 
             />
             <div className="flex-1 w-full">
               <div className="font-bold text-base sm:text-lg">{design.name}</div>

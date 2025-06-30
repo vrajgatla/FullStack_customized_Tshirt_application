@@ -33,51 +33,33 @@ public class DesignedTshirtService {
     @Autowired
     private DesignRepository designRepository;
 
-    @Autowired
-    private ImageCompressionService imageCompressionService;
-
     // Create a new designed t-shirt
-    public DesignedTshirt createDesignedTshirt(DesignedTshirt designedTshirt, MultipartFile imageFile, String adminUsername) {
+    public DesignedTshirt createDesignedTshirt(DesignedTshirt designedTshirt, String imageUrl, String thumbnailUrl, String optimizedUrl, String adminUsername) {
         try {
             // Set metadata
             designedTshirt.setCreatedBy(adminUsername);
             designedTshirt.setIsActive(true);
 
-            // Process and compress image if provided
-            if (imageFile != null && !imageFile.isEmpty()) {
-                byte[] originalImageData = imageFile.getBytes();
-                String imageType = imageFile.getContentType();
-
-                // Compress the image
-                byte[] compressedImageData = imageCompressionService.compressImage(originalImageData, imageType);
+            // Set Cloudinary URLs if provided
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                designedTshirt.setImageUrl(imageUrl);
+                designedTshirt.setThumbnailUrl(thumbnailUrl);
+                designedTshirt.setOptimizedUrl(optimizedUrl);
+                designedTshirt.setImageType("image/jpeg"); // Default type
                 
-                // Generate thumbnail
-                byte[] thumbnailData = imageCompressionService.generateThumbnail(originalImageData, 200);
-
-                // Set image data
-                designedTshirt.setImageData(compressedImageData);
-                designedTshirt.setImageType(imageType);
-                designedTshirt.setThumbnailData(thumbnailData);
-                designedTshirt.setThumbnailType(imageType);
-
-                // Set compression details
-                designedTshirt.setOriginalFileSize((long) originalImageData.length);
-                designedTshirt.setCompressedFileSize((long) compressedImageData.length);
-                
-                // Get image dimensions (you might need to implement this in ImageCompressionService)
-                // For now, we'll set placeholder values
+                // Set placeholder metadata (these would be set by Cloudinary service)
+                designedTshirt.setOriginalFileSize(0L);
+                designedTshirt.setCompressedFileSize(0L);
                 designedTshirt.setOriginalWidth(800);
                 designedTshirt.setOriginalHeight(600);
                 designedTshirt.setCompressedWidth(400);
                 designedTshirt.setCompressedHeight(300);
-                
-                double compressionRatio = ((double) compressedImageData.length / originalImageData.length) * 100;
-                designedTshirt.setCompressionRatio(String.format("%.1f%%", compressionRatio));
+                designedTshirt.setCompressionRatio("0%");
             }
 
             return designedTshirtRepository.save(designedTshirt);
-        } catch (IOException e) {
-            throw new RuntimeException("Error processing image: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException("Error creating designed t-shirt: " + e.getMessage());
         }
     }
 
@@ -111,7 +93,7 @@ public class DesignedTshirtService {
     }
 
     // Update designed t-shirt
-    public DesignedTshirt updateDesignedTshirt(Long id, DesignedTshirt updatedDesignedTshirt, MultipartFile imageFile) {
+    public DesignedTshirt updateDesignedTshirt(Long id, DesignedTshirt updatedDesignedTshirt, String imageUrl, String thumbnailUrl, String optimizedUrl) {
         Optional<DesignedTshirt> existingOptional = designedTshirtRepository.findById(id);
         if (existingOptional.isPresent()) {
             DesignedTshirt existing = existingOptional.get();
@@ -140,33 +122,12 @@ public class DesignedTshirtService {
             existing.setDesignPositionY(updatedDesignedTshirt.getDesignPositionY());
             existing.setTshirtZoom(updatedDesignedTshirt.getTshirtZoom());
 
-            // Update image if provided
-            if (imageFile != null && !imageFile.isEmpty()) {
-                try {
-                    byte[] originalImageData = imageFile.getBytes();
-                    String imageType = imageFile.getContentType();
-
-                    // Compress the image
-                    byte[] compressedImageData = imageCompressionService.compressImage(originalImageData, imageType);
-                    
-                    // Generate thumbnail
-                    byte[] thumbnailData = imageCompressionService.generateThumbnail(originalImageData, 200);
-
-                    // Set image data
-                    existing.setImageData(compressedImageData);
-                    existing.setImageType(imageType);
-                    existing.setThumbnailData(thumbnailData);
-                    existing.setThumbnailType(imageType);
-
-                    // Set compression details
-                    existing.setOriginalFileSize((long) originalImageData.length);
-                    existing.setCompressedFileSize((long) compressedImageData.length);
-                    
-                    double compressionRatio = ((double) compressedImageData.length / originalImageData.length) * 100;
-                    existing.setCompressionRatio(String.format("%.1f%%", compressionRatio));
-                } catch (IOException e) {
-                    throw new RuntimeException("Error processing image: " + e.getMessage());
-                }
+            // Update Cloudinary URLs if provided
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                existing.setImageUrl(imageUrl);
+                existing.setThumbnailUrl(thumbnailUrl);
+                existing.setOptimizedUrl(optimizedUrl);
+                existing.setImageType("image/jpeg"); // Default type
             }
 
             return designedTshirtRepository.save(existing);

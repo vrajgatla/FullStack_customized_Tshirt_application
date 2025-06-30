@@ -114,7 +114,7 @@ export default function OrderList() {
                     {order.status}
                   </span>
                   <span className="text-lg font-bold text-blue-600">
-                    ${order.total?.toFixed(2)}
+                    ₹{order.total?.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -126,7 +126,12 @@ export default function OrderList() {
                   {order.items?.map((item, index) => (
                     <div key={index} className="flex items-center gap-4 bg-gray-50 rounded-lg p-3">
                       <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <span className="text-2xl">👕</span>
+                        <img
+                          src={item.imageUrl || '/default-tshirt.svg'}
+                          alt={item.name}
+                          className="w-16 h-16 object-contain rounded border"
+                          onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
+                        />
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-gray-800">{item.tshirtName || 'Custom T-Shirt'}</p>
@@ -139,7 +144,7 @@ export default function OrderList() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-gray-800">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          ₹{(item.price * item.quantity).toFixed(2)}
                         </p>
                       </div>
                     </div>

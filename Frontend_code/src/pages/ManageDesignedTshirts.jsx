@@ -316,27 +316,11 @@ const ManageDesignedTshirts = () => {
                             
                             {/* Image */}
                             <img
-                              src={getImageUrl(tshirt.id)}
+                              src={tshirt.thumbnailUrl || tshirt.imageUrl || '/placeholder-design.svg'}
                               alt={tshirt.name}
                               className="h-12 w-12 rounded-lg object-cover"
-                              onLoad={() => handleImageLoad(tshirt.id)}
-                              onError={() => {
-                                const fallbackUrl = apiService.getDesignedTshirtImage(tshirt.id);
-                                handleImageError(tshirt.id, fallbackUrl);
-                              }}
-                              style={{
-                                display: (!imageLoadingStates[tshirt.id] || imageLoadingStates[tshirt.id].loading) ? 'none' : 'block'
-                              }}
+                              onError={e => { e.currentTarget.src = '/placeholder-design.svg'; }}
                             />
-                            
-                            {/* Fallback placeholder */}
-                            {imageLoadingStates[tshirt.id]?.error && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                                <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -354,7 +338,7 @@ const ManageDesignedTshirts = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${tshirt.price?.toFixed(2) || '0.00'}
+                          ₹{tshirt.price?.toFixed(2) || '0.00'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -450,17 +434,10 @@ const ManageDesignedTshirts = () => {
                   <div className="flex flex-col">
                     <div className="relative w-full aspect-square max-h-80 mb-4">
                       <img
-                        src={apiService.getDesignedTshirtImage(selectedTshirt.id)}
+                        src={selectedTshirt.imageUrl || '/placeholder-design.svg'}
                         alt={selectedTshirt.name}
                         className="w-full h-full object-contain rounded-lg border border-gray-200"
-                        onError={(e) => {
-                          console.warn(`Failed to load full image for designed t-shirt ${selectedTshirt.id}:`, e.target.src);
-                          e.target.src = '/default-tshirt.svg';
-                          e.target.onerror = null;
-                        }}
-                        onLoad={() => {
-                          console.log(`Successfully loaded full image for designed t-shirt ${selectedTshirt.id}`);
-                        }}
+                        onError={e => { e.currentTarget.src = '/default-tshirt.svg'; e.currentTarget.onerror = null; }}
                       />
                     </div>
                   </div>
@@ -482,7 +459,7 @@ const ManageDesignedTshirts = () => {
                       </div>
                       <div>
                         <span className="font-medium text-gray-700">Price:</span>
-                        <p className="text-gray-900">${selectedTshirt.price?.toFixed(2) || '0.00'}</p>
+                        <p className="text-gray-900">₹{selectedTshirt.price?.toFixed(2) || '0.00'}</p>
                       </div>
                       <div>
                         <span className="font-medium text-gray-700">Stock:</span>

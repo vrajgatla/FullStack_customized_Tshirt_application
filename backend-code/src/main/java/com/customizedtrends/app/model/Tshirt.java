@@ -2,6 +2,7 @@ package com.customizedtrends.app.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,16 +29,11 @@ public class Tshirt {
     private Integer stock;
     private Boolean featured;
     private String tags;
-    @Lob
-    private byte[] imageData;
+    
+    // Metadata
     private String imageType;
     private String description;
     private String name;
-    
-    // New fields for compression and thumbnails
-    @Lob
-    private byte[] thumbnailData;
-    private String thumbnailType;
     private Long originalFileSize;
     private Long compressedFileSize;
     private Integer originalWidth;
@@ -48,6 +44,10 @@ public class Tshirt {
     
     // Created date field
     private LocalDateTime createdAt;
+
+    private String imageUrl;
+    private String thumbnailUrl;
+    private String optimizedUrl;
 
     public Tshirt() {
         this.createdAt = LocalDateTime.now();
@@ -80,8 +80,6 @@ public class Tshirt {
     public void setFeatured(Boolean featured) { this.featured = featured; }
     public String getTags() { return tags; }
     public void setTags(String tags) { this.tags = tags; }
-    public byte[] getImageData() { return imageData; }
-    public void setImageData(byte[] imageData) { this.imageData = imageData; }
     public String getImageType() { return imageType; }
     public void setImageType(String imageType) { this.imageType = imageType; }
     public String getDescription() { return description; }
@@ -89,11 +87,7 @@ public class Tshirt {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     
-    // New getters and setters for compression fields
-    public byte[] getThumbnailData() { return thumbnailData; }
-    public void setThumbnailData(byte[] thumbnailData) { this.thumbnailData = thumbnailData; }
-    public String getThumbnailType() { return thumbnailType; }
-    public void setThumbnailType(String thumbnailType) { this.thumbnailType = thumbnailType; }
+    // Metadata getters and setters
     public Long getOriginalFileSize() { return originalFileSize; }
     public void setOriginalFileSize(Long originalFileSize) { this.originalFileSize = originalFileSize; }
     public Long getCompressedFileSize() { return compressedFileSize; }
@@ -112,4 +106,11 @@ public class Tshirt {
     // Created date getter and setter
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+    public String getOptimizedUrl() { return optimizedUrl; }
+    public void setOptimizedUrl(String optimizedUrl) { this.optimizedUrl = optimizedUrl; }
 } 

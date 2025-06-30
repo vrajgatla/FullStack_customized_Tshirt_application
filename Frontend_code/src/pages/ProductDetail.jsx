@@ -1,247 +1,132 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import ProductCard from '../Components/ProductCard';
+import { FaShoppingCart, FaPalette, FaShieldAlt, FaStar, FaTags } from 'react-icons/fa';
+
+// Mock related products
+const mockRelatedProducts = [
+  { id: 101, name: 'Urban Explorer Tee', price: 24.99, imageUrl: '/default-tshirt.svg' },
+  { id: 102, name: 'Vintage Vibe Tee', price: 22.99, imageUrl: '/default-tshirt.svg' },
+  { id: 103, name: 'Artisan Sketch Tee', price: 29.99, imageUrl: '/default-tshirt.svg' },
+  { id: 104, name: 'Graffiti Pop Tee', price: 27.99, imageUrl: '/default-tshirt.svg' },
+];
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
-  const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [mainImage, setMainImage] = useState('');
+  const [relatedProducts, setRelatedProducts] = useState(mockRelatedProducts);
 
   useEffect(() => {
-    fetch(`/api/tshirts/${id}`)
-      .then(res => {
-        if (!res.ok) {
-          throw new Error('Product not found');
-        }
-        return res.json();
-      })
+    fetch(`/api/tshirts/id/${id}`)
+      .then(res => res.ok ? res.json() : Promise.reject(res))
       .then(data => {
         setProduct(data);
+        setMainImage(data.imageUrl);
         setSelectedSize(data.sizes?.[0] || '');
-        setSelectedColor(data.color?.name || '');
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching product:', err);
-        setError(err.message);
+        setError('Failed to load product. It may no longer exist.');
         setLoading(false);
       });
   }, [id]);
 
   const handleAddToCart = () => {
-    if (!selectedSize || !selectedColor) {
-      setError('Please select both size and color');
-      return;
-    }
-
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-
-    const cartItem = {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      brand: product.brand?.name,
-      color: selectedColor,
-      size: selectedSize,
-      tshirtImg: `/api/tshirts/${product.id}/image`,
-      quantity: quantity
-    };
-
-    addToCart(cartItem);
-    setError('');
-    // Show success message or redirect to cart
-    navigate('/cart');
+    // Add to cart logic here
+    console.log('Added to cart:', { id, selectedSize, quantity });
   };
 
-  const handleCustomize = () => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    navigate(`/customize/${product.id}`);
-  };
-
-  if (loading) {
-    return (
-      <div className="w-full max-w-4xl mx-auto p-4">
-        <div className="animate-pulse">
-          <div className="bg-gray-300 h-80 rounded-xl mb-4"></div>
-          <div className="bg-gray-300 h-8 rounded mb-2"></div>
-          <div className="bg-gray-300 h-6 rounded mb-4"></div>
-          <div className="bg-gray-300 h-4 rounded mb-2"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !product) {
-    return (
-      <div className="w-full max-w-4xl mx-auto p-4 text-center">
-        <div className="text-red-600 text-lg mb-4">
-          {error || 'Product not found'}
-        </div>
-        <Link 
-          to="/products" 
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition"
-        >
-          Back to Products
-        </Link>
-      </div>
-    );
-  }
+  if (loading) return <div className="text-center py-20">Loading...</div>;
+  if (error || !product) return <div className="text-center py-20 text-red-500">{error}</div>;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-2 sm:p-4 flex flex-col md:flex-row gap-4 md:gap-8">
-      <div className="md:w-1/2">
-        <img 
-          src={`/api/tshirts/${product.id}/image`} 
-          alt={product.name} 
-          className="w-full max-w-xs sm:max-w-sm md:w-full md:h-80 object-cover rounded-xl shadow mb-4 md:mb-0 mx-auto" 
-          onError={(e) => {
-            e.target.src = '/default-tshirt.svg';
-            e.target.onerror = null; // Prevent infinite loop
-          }}
-        />
-      </div>
-      
-      <div className="md:w-1/2 flex flex-col justify-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-2 break-words">{product.name}</h1>
-        <div className="text-base sm:text-lg text-gray-600 mb-2">Brand: {product.brand?.name}</div>
-        <div className="text-base sm:text-lg text-gray-600 mb-2">Color: {product.color?.name}</div>
-        <div className="text-xl sm:text-2xl text-blue-700 font-bold mb-4">${product.price?.toFixed(2)}</div>
-        
-        {product.description && (
-          <p className="mb-6 text-gray-700 text-sm sm:text-base break-words">{product.description}</p>
-        )}
-
-        {/* Product Type Badge */}
-        {product.isCustomizable && (
-          <div className="mb-4">
-            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
-              ✨ Customizable
-            </span>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Image Gallery */}
+          <div className="bg-white rounded-xl shadow-lg p-4">
+            <img src={mainImage || '/default-tshirt.svg'} alt={product.name} className="w-full h-[400px] lg:h-[500px] object-contain rounded-lg" />
           </div>
-        )}
 
-        {/* Size Selection */}
-        {product.sizes && product.sizes.length > 0 && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Size:</label>
-            <div className="flex flex-wrap gap-2">
-              {product.sizes.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setSelectedSize(size)}
-                  className={`px-4 py-2 border rounded-lg font-medium transition ${
-                    selectedSize === size
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
+          {/* Product Info */}
+          <div>
+            <p className="text-gray-500 font-semibold">{product.brand?.name}</p>
+            <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-2">{product.name}</h1>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex text-yellow-400"><FaStar /><FaStar /><FaStar /><FaStar /><FaStar /></div>
+              <span className="text-gray-600">(98 Reviews)</span>
             </div>
-          </div>
-        )}
 
-        {/* Color Selection */}
-        {product.color && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Color:</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedColor(product.color.name)}
-                className={`px-4 py-2 border rounded-lg font-medium transition ${
-                  selectedColor === product.color.name
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                {product.color.name}
+            <div className="flex items-baseline gap-3 mb-6">
+              <span className="text-3xl font-bold text-pink-600">₹{product.price.toFixed(2)}</span>
+              <span className="text-gray-400 line-through">₹{(product.price * 1.4).toFixed(2)}</span>
+              <span className="text-green-500 font-bold">(30% OFF)</span>
+            </div>
+
+            {/* Size Selector */}
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg mb-2">Select Size</h3>
+              <div className="flex flex-wrap gap-3">
+                {product.sizes.map(size => (
+                  <button key={size} onClick={() => setSelectedSize(size)} className={`px-6 py-2 border-2 rounded-lg font-bold transition-all duration-200 ${selectedSize === size ? 'bg-pink-500 text-white border-pink-500' : 'border-gray-300 hover:border-pink-400'}`}>{size}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions: Desktop */}
+            <div className="hidden md:flex items-center gap-4">
+              <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2">
+                <FaShoppingCart /> Add to Cart
               </button>
+              {product.isCustomizable && (
+                <Link to={`/customize/${product.id}`} className="flex-1 bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold py-3 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2">
+                  <FaPalette /> Customize
+                </Link>
+              )}
+            </div>
+
+            {/* Trust Badges */}
+            <div className="bg-white p-4 rounded-xl shadow-sm mt-8 border">
+              <div className="flex items-center gap-4 text-sm mt-3">
+                <FaShieldAlt className="text-blue-500 w-6 h-6" />
+                <div>
+                  <h4 className="font-bold">100% Original Guarantee</h4>
+                  <p className="text-gray-600">Authentic products sourced directly.</p>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Quantity Selection */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity:</label>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-8 h-8 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition flex items-center justify-center"
-            >
-              -
-            </button>
-            <span className="w-12 text-center font-semibold">{quantity}</span>
-            <button
-              onClick={() => setQuantity(quantity + 1)}
-              className="w-8 h-8 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition flex items-center justify-center"
-            >
-              +
-            </button>
+        {/* You Might Also Like */}
+        <div className="mt-20">
+          <h2 className="text-2xl font-bold text-center mb-8">You Might Also Like</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {relatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
           </div>
         </div>
+      </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="text-red-600 text-sm mb-4">{error}</div>
+      {/* Sticky Action Bar (Mobile) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white p-4 border-t-2 shadow-up z-40 flex gap-4">
+        {product.isCustomizable && (
+          <Link to={`/customize/${product.id}`} className="flex-1 bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+            <FaPalette /> Customize
+          </Link>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-          <button 
-            onClick={handleAddToCart}
-            className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition flex-1"
-          >
-            Add to Cart
-          </button>
-          {product.isCustomizable && (
-            <button 
-              onClick={handleCustomize}
-              className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition flex-1"
-            >
-              Customize Design
-            </button>
-          )}
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Product Features</h3>
-          <ul className="space-y-2 text-sm text-gray-600">
-            <li className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              High-quality cotton material
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              Durable printing technology
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              Machine washable
-            </li>
-            {product.isCustomizable && (
-              <li className="flex items-center gap-2">
-                <span className="text-green-500">✓</span>
-                Fully customizable design
-              </li>
-            )}
-          </ul>
-        </div>
+        <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+          <FaShoppingCart /> Add to Cart
+        </button>
       </div>
     </div>
   );

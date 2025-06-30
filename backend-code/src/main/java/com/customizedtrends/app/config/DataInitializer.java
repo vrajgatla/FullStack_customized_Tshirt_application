@@ -2,49 +2,44 @@ package com.customizedtrends.app.config;
 
 import com.customizedtrends.app.model.*;
 import com.customizedtrends.app.repository.*;
-import com.customizedtrends.app.service.ImageCompressionService;
+import com.customizedtrends.app.service.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
-import javax.imageio.ImageIO;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     @Autowired
     private UserRepository userRepository;
-    
+
     @Autowired
     private BrandRepository brandRepository;
-    
+
     @Autowired
     private ColorRepository colorRepository;
-    
+
     @Autowired
     private TshirtRepository tshirtRepository;
-    
+
     @Autowired
     private DesignRepository designRepository;
-    
+
     @Autowired
-    private ImageCompressionService imageCompressionService;
+    private CloudinaryService cloudinaryService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
     public void run(String... args) throws Exception {
-        // Create admin users if they don't exist
-        createAdminUser("admin1", "admin1@customtee.com", "admin123");
-        createAdminUser("admin2", "admin2@customtee.com", "admin456");
+        System.out.println("Starting data initialization...");
+        
+        // Create admin users
+        createAdminUser("Admin User", "admin@example.com", "admin123");
+        createAdminUser("Admin User 2", "admin2@example.com", "admin123");
         
         // Create sample brands
         createSampleBrands();
@@ -58,95 +53,89 @@ public class DataInitializer implements CommandLineRunner {
         // Create sample designs
         createSampleDesigns();
         
-        System.out.println("=== CustomTee Data Initialization Complete ===");
-        System.out.println("Admin 1: admin1@customtee.com / admin123");
-        System.out.println("Admin 2: admin2@customtee.com / admin456");
-        System.out.println("Sample brands, colors, and t-shirts created");
-        System.out.println("=============================================");
+        System.out.println("Data initialization completed!");
     }
 
     private void createAdminUser(String name, String email, String password) {
-        if (!userRepository.findByEmail(email).isPresent()) {
-            String hashedPassword = passwordEncoder.encode(password);
-            User adminUser = new User(name, email, hashedPassword, User.UserRole.ADMIN);
-            userRepository.save(adminUser);
+        if (userRepository.findByEmail(email).isEmpty()) {
+            User user = new User();
+            user.setName(name);
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(password));
+            user.setRole(User.UserRole.ADMIN);
+            userRepository.save(user);
             System.out.println("Created admin user: " + email);
-        } else {
-            System.out.println("Admin user already exists: " + email);
         }
     }
-    
+
     private void createSampleBrands() {
-        List<String> brandNames = Arrays.asList("Nike", "Adidas", "Puma", "Under Armour", "Hanes", "Gildan");
+        if (brandRepository.count() > 0) {
+            System.out.println("Brands already exist, skipping sample creation");
+            return;
+        }
         
-        for (String brandName : brandNames) {
-            if (!brandRepository.findByName(brandName).isPresent()) {
-                Brand brand = new Brand();
-                brand.setName(brandName);
-                brandRepository.save(brand);
-                System.out.println("Created brand: " + brandName);
-            }
+        String[] brandNames = {"Nike", "Adidas", "Puma", "Under Armour", "Reebok"};
+        
+        for (int i = 0; i < brandNames.length; i++) {
+            Brand brand = new Brand();
+            brand.setName(brandNames[i]);
+            brandRepository.save(brand);
+            System.out.println("Created brand: " + brandNames[i]);
         }
     }
-    
+
     private void createSampleColors() {
-        List<String> colorNames = Arrays.asList("White", "Black", "Navy", "Red", "Gray", "Green", "Yellow", "Pink");
-        List<String> hexCodes = Arrays.asList("#FFFFFF", "#000000", "#000080", "#FF0000", "#808080", "#008000", "#FFFF00", "#FFC0CB");
+        if (colorRepository.count() > 0) {
+            System.out.println("Colors already exist, skipping sample creation");
+            return;
+        }
         
-        for (int i = 0; i < colorNames.size(); i++) {
-            String colorName = colorNames.get(i);
-            if (!colorRepository.findByName(colorName).isPresent()) {
-                Color color = new Color();
-                color.setName(colorName);
-                color.setHexCode(hexCodes.get(i));
-                colorRepository.save(color);
-                System.out.println("Created color: " + colorName);
-            }
+        String[] colorNames = {"Black", "White", "Red", "Blue", "Green", "Yellow", "Purple", "Orange", "Pink", "Gray"};
+        String[] hexCodes = {"#000000", "#FFFFFF", "#FF0000", "#0000FF", "#00FF00", "#FFFF00", "#800080", "#FFA500", "#FFC0CB", "#808080"};
+        
+        for (int i = 0; i < colorNames.length; i++) {
+            Color color = new Color();
+            color.setName(colorNames[i]);
+            color.setHexCode(hexCodes[i]);
+            colorRepository.save(color);
+            System.out.println("Created color: " + colorNames[i]);
         }
     }
-    
+
     private void createSampleTshirts() {
         if (tshirtRepository.count() > 0) {
             System.out.println("T-shirts already exist, skipping sample creation");
             return;
         }
         
-        List<Brand> brands = brandRepository.findAll();
-        List<Color> colors = colorRepository.findAll();
+        Brand nike = brandRepository.findByName("Nike").orElse(null);
+        Brand adidas = brandRepository.findByName("Adidas").orElse(null);
+        Color black = colorRepository.findByName("Black").orElse(null);
+        Color white = colorRepository.findByName("White").orElse(null);
+        Color red = colorRepository.findByName("Red").orElse(null);
         
-        if (brands.isEmpty() || colors.isEmpty()) {
-            System.out.println("No brands or colors found, skipping t-shirt creation");
+        if (nike == null || adidas == null || black == null || white == null || red == null) {
+            System.out.println("Required brands or colors not found, skipping t-shirt creation");
             return;
         }
         
-        // Create sample t-shirts
         String[] tshirtNames = {
-            "Classic Cotton T-Shirt",
-            "Premium Comfort Tee",
-            "Sport Performance Shirt",
-            "Casual Everyday Tee",
-            "Fashion Forward T-Shirt",
-            "Comfort Fit Cotton"
+            "Nike Classic Black", "Nike Classic White", "Adidas Sport Red", 
+            "Adidas Casual Black", "Nike Premium White"
         };
         
-        String[] descriptions = {
-            "High-quality cotton t-shirt perfect for everyday wear",
-            "Premium comfort with soft fabric and perfect fit",
-            "Performance fabric for active lifestyle",
-            "Casual and comfortable for daily use",
-            "Trendy design with modern fit",
-            "Comfortable fit with breathable cotton"
-        };
+        Brand[] brands = {nike, nike, adidas, adidas, nike};
+        Color[] colors = {black, white, red, black, white};
+        String[] genders = {"Men", "Women", "Men", "Unisex", "Men"};
         
         for (int i = 0; i < tshirtNames.length; i++) {
             Tshirt tshirt = new Tshirt();
             tshirt.setName(tshirtNames[i]);
-            tshirt.setDescription(descriptions[i]);
-            tshirt.setBrand(brands.get(i % brands.size()));
-            tshirt.setColor(colors.get(i % colors.size()));
-            tshirt.setSizes(Arrays.asList("S", "M", "L", "XL"));
-            tshirt.setGender("Unisex");
-            tshirt.setMaterial("100% Cotton");
+            tshirt.setBrand(brands[i]);
+            tshirt.setColor(colors[i]);
+            tshirt.setSizes(java.util.List.of("S", "M", "L", "XL"));
+            tshirt.setGender(genders[i]);
+            tshirt.setMaterial("Cotton");
             tshirt.setFit("Regular");
             tshirt.setSleeveType("Short Sleeve");
             tshirt.setNeckType("Crew Neck");
@@ -154,31 +143,16 @@ public class DataInitializer implements CommandLineRunner {
             tshirt.setStock(50);
             tshirt.setFeatured(i < 3); // First 3 are featured
             
-            // Create a simple placeholder image (1x1 pixel PNG)
-            byte[] placeholderImage = createPlaceholderImage();
-            tshirt.setImageData(placeholderImage);
-            tshirt.setImageType("image/png");
+            // Set placeholder Cloudinary URLs
+            tshirt.setImageUrl("https://res.cloudinary.com/dbanspk1d/image/upload/v1/placeholder-tshirt.jpg");
+            tshirt.setThumbnailUrl("https://res.cloudinary.com/dbanspk1d/image/upload/c_thumb,w_200,h_200/v1/placeholder-tshirt.jpg");
+            tshirt.setOptimizedUrl("https://res.cloudinary.com/dbanspk1d/image/upload/f_auto,q_auto/v1/placeholder-tshirt.jpg");
             
             tshirtRepository.save(tshirt);
             System.out.println("Created t-shirt: " + tshirtNames[i]);
         }
     }
-    
-    private byte[] createPlaceholderImage() {
-        // Simple 1x1 transparent PNG
-        return new byte[] {
-            (byte) 0x89, (byte) 0x50, (byte) 0x4E, (byte) 0x47, (byte) 0x0D, (byte) 0x0A, (byte) 0x1A, (byte) 0x0A,
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x0D, (byte) 0x49, (byte) 0x48, (byte) 0x44, (byte) 0x52,
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x01, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x01,
-            (byte) 0x08, (byte) 0x06, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x1F, (byte) 0x15, (byte) 0xC4,
-            (byte) 0x89, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x0A, (byte) 0x49, (byte) 0x44, (byte) 0x41,
-            (byte) 0x54, (byte) 0x78, (byte) 0x9C, (byte) 0x63, (byte) 0x00, (byte) 0x01, (byte) 0x00, (byte) 0x00,
-            (byte) 0x05, (byte) 0x00, (byte) 0x01, (byte) 0x0D, (byte) 0x0A, (byte) 0x2D, (byte) 0xB4, (byte) 0x00,
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x49, (byte) 0x45, (byte) 0x4E, (byte) 0x44, (byte) 0xAE,
-            (byte) 0x42, (byte) 0x60, (byte) 0x82
-        };
-    }
-    
+
     private void createSampleDesigns() {
         if (designRepository.count() > 0) {
             System.out.println("Designs already exist, skipping sample creation");
@@ -231,130 +205,23 @@ public class DataInitializer implements CommandLineRunner {
             design.setDate(LocalDate.now());
             design.setDescription(descriptions[i]);
             
-            // Create a sample design image
-            byte[] designImage = createSampleDesignImage(designNames[i], i);
-            design.setImageData(designImage);
-            design.setImageType("image/png");
-            design.setOriginalFileSize((long) designImage.length);
+            // Set placeholder Cloudinary URLs
+            design.setImageUrl("https://res.cloudinary.com/dbanspk1d/image/upload/v1/placeholder-design-" + (i + 1) + ".jpg");
+            design.setThumbnailUrl("https://res.cloudinary.com/dbanspk1d/image/upload/c_thumb,w_200,h_200/v1/placeholder-design-" + (i + 1) + ".jpg");
+            design.setOptimizedUrl("https://res.cloudinary.com/dbanspk1d/image/upload/f_auto,q_auto/v1/placeholder-design-" + (i + 1) + ".jpg");
+            design.setImageType("image/jpeg");
+            
+            // Set placeholder metadata
+            design.setOriginalFileSize(102400L); // 100KB placeholder
+            design.setCompressedFileSize(51200L); // 50KB placeholder
             design.setOriginalWidth(400);
             design.setOriginalHeight(400);
-            
-            // Compress the image
-            try {
-                byte[] compressedData = imageCompressionService.compressImage(designImage, "image/png");
-                design.setImageData(compressedData);
-                design.setCompressedFileSize((long) compressedData.length);
-                
-                // Calculate compression ratio
-                if (design.getOriginalFileSize() != null && design.getOriginalFileSize() > 0) {
-                    double ratio = (double) design.getCompressedFileSize() / design.getOriginalFileSize();
-                    design.setCompressionRatio(String.format("%.2f%%", (1 - ratio) * 100));
-                }
-                
-                // Generate thumbnail
-                byte[] thumbnailData = imageCompressionService.generateThumbnail(compressedData, 200);
-                design.setThumbnailData(thumbnailData);
-                design.setThumbnailType("image/jpeg");
-                
-            } catch (Exception e) {
-                System.out.println("Error processing design image: " + e.getMessage());
-                // Use original image if compression fails
-                design.setCompressedFileSize(design.getOriginalFileSize());
-                design.setCompressionRatio("0.00%");
-            }
+            design.setCompressedWidth(400);
+            design.setCompressedHeight(400);
+            design.setCompressionRatio("50.00%");
             
             designRepository.save(design);
             System.out.println("Created design: " + designNames[i]);
-        }
-    }
-    
-    private byte[] createSampleDesignImage(String name, int index) {
-        try {
-            BufferedImage image = new BufferedImage(400, 400, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g2d = image.createGraphics();
-            
-            // Set rendering hints for better quality
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            
-            // Create different designs based on index
-            switch (index % 8) {
-                case 0: // Abstract Geometric
-                    g2d.setColor(new java.awt.Color(255, 100, 100));
-                    g2d.fillRect(50, 50, 300, 300);
-                    g2d.setColor(new java.awt.Color(100, 100, 255));
-                    g2d.fillOval(100, 100, 200, 200);
-                    g2d.setColor(new java.awt.Color(100, 255, 100));
-                    g2d.fillPolygon(new int[]{200, 300, 100}, new int[]{100, 300, 300}, 3);
-                    break;
-                case 1: // Vintage Retro
-                    g2d.setColor(new java.awt.Color(255, 200, 100));
-                    g2d.fillRect(0, 0, 400, 400);
-                    g2d.setColor(new java.awt.Color(150, 100, 50));
-                    for (int i = 0; i < 10; i++) {
-                        g2d.drawLine(0, i * 40, 400, i * 40);
-                    }
-                    break;
-                case 2: // Modern Minimalist
-                    g2d.setColor(new java.awt.Color(240, 240, 240));
-                    g2d.fillRect(0, 0, 400, 400);
-                    g2d.setColor(new java.awt.Color(50, 50, 50));
-                    g2d.fillRect(150, 100, 100, 200);
-                    g2d.fillRect(100, 150, 200, 100);
-                    break;
-                case 3: // Nature Inspired
-                    g2d.setColor(new java.awt.Color(100, 200, 100));
-                    g2d.fillOval(100, 100, 200, 200);
-                    g2d.setColor(new java.awt.Color(50, 150, 50));
-                    g2d.fillOval(150, 150, 100, 100);
-                    g2d.setColor(new java.awt.Color(200, 255, 200));
-                    g2d.fillOval(200, 200, 50, 50);
-                    break;
-                case 4: // Urban Street Art
-                    g2d.setColor(new java.awt.Color(255, 255, 0));
-                    g2d.fillRect(0, 0, 400, 400);
-                    g2d.setColor(new java.awt.Color(255, 0, 255));
-                    g2d.fillRect(50, 50, 300, 300);
-                    g2d.setColor(new java.awt.Color(0, 255, 255));
-                    g2d.fillOval(100, 100, 200, 200);
-                    break;
-                case 5: // Classic Stripes
-                    g2d.setColor(new java.awt.Color(255, 255, 255));
-                    g2d.fillRect(0, 0, 400, 400);
-                    g2d.setColor(new java.awt.Color(0, 0, 255));
-                    for (int i = 0; i < 20; i++) {
-                        g2d.fillRect(i * 20, 0, 10, 400);
-                    }
-                    break;
-                case 6: // Bold Typography
-                    g2d.setColor(new java.awt.Color(0, 0, 0));
-                    g2d.fillRect(0, 0, 400, 400);
-                    g2d.setColor(new java.awt.Color(255, 255, 255));
-                    g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 48));
-                    g2d.drawString("DESIGN", 100, 200);
-                    break;
-                case 7: // Floral Pattern
-                    g2d.setColor(new java.awt.Color(255, 192, 203));
-                    g2d.fillRect(0, 0, 400, 400);
-                    g2d.setColor(new java.awt.Color(255, 20, 147));
-                    for (int i = 0; i < 8; i++) {
-                        int x = 200 + (int)(150 * Math.cos(i * Math.PI / 4));
-                        int y = 200 + (int)(150 * Math.sin(i * Math.PI / 4));
-                        g2d.fillOval(x - 30, y - 30, 60, 60);
-                    }
-                    break;
-            }
-            
-            g2d.dispose();
-            
-            // Convert to byte array
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "png", baos);
-            return baos.toByteArray();
-            
-        } catch (Exception e) {
-            System.out.println("Error creating sample design image: " + e.getMessage());
-            return createPlaceholderImage();
         }
     }
 } 

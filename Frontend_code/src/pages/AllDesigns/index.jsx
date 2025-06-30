@@ -51,10 +51,10 @@ export default function AllDesigns() {
             {designs.map(design => (
               <div key={design.id} className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 flex flex-col items-center hover:scale-105 hover:shadow-2xl transition-all duration-300">
                 <img 
-                  src={`/api/designs/${design.id}/image`} 
+                  src={design.thumbnailUrl || design.imageUrl || '/placeholder-design.svg'} 
                   alt={design.name} 
-                  className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 object-contain rounded-xl mb-2 sm:mb-3 shadow max-w-full cursor-pointer" 
-                  onError={e => e.currentTarget.style.display = 'none'} 
+                  className="w-24 h-24 object-contain rounded border mb-2 sm:mb-0" 
+                  onError={e => { e.currentTarget.src = '/placeholder-design.svg'; }} 
                 />
                 <span className="text-base sm:text-lg font-semibold text-gray-700 text-center break-words mb-1">{design.name}</span>
                 <span className="text-xs text-gray-500 mb-1">Type: {design.type} | Theme: {design.theme}</span>

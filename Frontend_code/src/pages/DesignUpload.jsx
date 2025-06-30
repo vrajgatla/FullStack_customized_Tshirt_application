@@ -157,7 +157,7 @@ export default function DesignUpload() {
           )}
           {form.imageUrl && (
             <div className="mt-2">
-              <img src={form.imageUrl} alt="Preview" className="w-24 h-24 sm:w-32 sm:h-32 object-contain rounded border" />
+              <img src={form.imageUrl || '/placeholder-design.svg'} alt="Preview" className="w-24 h-24 sm:w-32 sm:h-32 object-contain rounded border" />
               {compressionInfo && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
                   <div className="font-semibold text-gray-700 mb-2">Image Compression Info:</div>

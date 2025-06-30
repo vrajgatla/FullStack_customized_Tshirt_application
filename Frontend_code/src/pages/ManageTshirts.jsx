@@ -177,7 +177,7 @@ export default function ManageTshirts() {
         formData.append('image', newImage);
         
         setUpdateStatus('Sending update request to server...');
-        const res = await fetch(`/api/tshirts/${form.id}/update-with-image`, {
+        const res = await fetch(`/api/tshirts/id/${form.id}/update-with-image`, {
           method: 'PUT',
           body: formData,
         });
@@ -226,7 +226,7 @@ export default function ManageTshirts() {
         formData.append('tshirt', new Blob([JSON.stringify(tshirtData)], { type: 'application/json' }));
         
         setUpdateStatus('Sending update request to server...');
-        const res = await fetch(`/api/tshirts/${form.id}/update-with-image`, {
+        const res = await fetch(`/api/tshirts/id/${form.id}/update-with-image`, {
           method: 'PUT',
           body: formData,
         });
@@ -261,7 +261,7 @@ export default function ManageTshirts() {
     setError('');
     
     try {
-      const res = await fetch(`/api/tshirts/${tshirtId}`, {
+      const res = await fetch(`/api/tshirts/id/${tshirtId}`, {
         method: 'DELETE',
       });
       
@@ -432,28 +432,11 @@ export default function ManageTshirts() {
           {tshirts.map(tshirt => (
             <div key={tshirt.id} className="border rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center">
               <div className="w-24 h-24 flex items-center justify-center bg-gray-100 rounded border mb-2 sm:mb-0 overflow-hidden">
-                <img 
-                  src={apiService.getProductThumbnail(tshirt.id)} 
-                  alt={tshirt.name} 
+                <img
+                  src={tshirt.thumbnailUrl || tshirt.imageUrl || '/default-tshirt.svg'}
+                  alt={tshirt.name}
                   className="w-full h-full object-contain"
-                  onError={(e) => {
-                    console.warn(`Failed to load thumbnail for t-shirt ${tshirt.id}, trying full image...`);
-                    // Try to load the full image as fallback
-                    e.target.src = apiService.getProductImage(tshirt.id);
-                    e.target.onerror = (e2) => {
-                      console.warn(`Failed to load full image for t-shirt ${tshirt.id}, using default...`);
-                      // If full image also fails, use default placeholder
-                      e2.target.style.display = 'none';
-                      e2.target.nextSibling.style.display = 'flex';
-                    };
-                  }}
-                  onLoad={() => {
-                    // Hide the placeholder when image loads successfully
-                    const placeholder = e.target.nextSibling;
-                    if (placeholder) {
-                      placeholder.style.display = 'none';
-                    }
-                  }}
+                  onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
                 />
                 <div className="hidden w-full h-full items-center justify-center text-gray-400 text-xs text-center">
                   <div>

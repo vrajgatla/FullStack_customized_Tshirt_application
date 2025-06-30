@@ -16,16 +16,15 @@ public class Design {
     private String tags;
     private String uploadedBy;
     private LocalDate date;
+    
+    // Cloudinary URLs
     private String imageUrl;
-    @Lob
-    private byte[] imageData;
+    private String thumbnailUrl;
+    private String optimizedUrl;
+    
+    // Metadata
     private String imageType;
     private String description;
-    
-    // New fields for compression and thumbnails
-    @Lob
-    private byte[] thumbnailData;
-    private String thumbnailType;
     private Long originalFileSize;
     private Long compressedFileSize;
     private Integer originalWidth;
@@ -33,6 +32,10 @@ public class Design {
     private Integer compressedWidth;
     private Integer compressedHeight;
     private String compressionRatio;
+    
+    // Cloudinary specific fields
+    private String cloudinaryPublicId;
+    private String cloudinaryVersion;
 
     public Design() {}
 
@@ -53,18 +56,18 @@ public class Design {
     public void setDate(LocalDate date) { this.date = date; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-    public byte[] getImageData() { return imageData; }
-    public void setImageData(byte[] imageData) { this.imageData = imageData; }
     public String getImageType() { return imageType; }
     public void setImageType(String imageType) { this.imageType = imageType; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     
-    // New getters and setters for compression fields
-    public byte[] getThumbnailData() { return thumbnailData; }
-    public void setThumbnailData(byte[] thumbnailData) { this.thumbnailData = thumbnailData; }
-    public String getThumbnailType() { return thumbnailType; }
-    public void setThumbnailType(String thumbnailType) { this.thumbnailType = thumbnailType; }
+    // New getters and setters for Cloudinary URLs
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+    public String getOptimizedUrl() { return optimizedUrl; }
+    public void setOptimizedUrl(String optimizedUrl) { this.optimizedUrl = optimizedUrl; }
+    
+    // Metadata getters and setters
     public Long getOriginalFileSize() { return originalFileSize; }
     public void setOriginalFileSize(Long originalFileSize) { this.originalFileSize = originalFileSize; }
     public Long getCompressedFileSize() { return compressedFileSize; }
@@ -79,4 +82,10 @@ public class Design {
     public void setCompressedHeight(Integer compressedHeight) { this.compressedHeight = compressedHeight; }
     public String getCompressionRatio() { return compressionRatio; }
     public void setCompressionRatio(String compressionRatio) { this.compressionRatio = compressionRatio; }
+    
+    // Cloudinary specific getters and setters
+    public String getCloudinaryPublicId() { return cloudinaryPublicId; }
+    public void setCloudinaryPublicId(String cloudinaryPublicId) { this.cloudinaryPublicId = cloudinaryPublicId; }
+    public String getCloudinaryVersion() { return cloudinaryVersion; }
+    public void setCloudinaryVersion(String cloudinaryVersion) { this.cloudinaryVersion = cloudinaryVersion; }
 } 

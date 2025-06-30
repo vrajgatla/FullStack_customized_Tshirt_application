@@ -32,7 +32,7 @@ export default function ProductCustomizer() {
       setLoading(true);
       
       // Fetch product details
-      const productRes = await fetch(`/api/tshirts/${productId}`);
+      const productRes = await fetch(`/api/tshirts/id/${productId}`);
       const productData = await productRes.json();
       setProduct(productData);
       
@@ -147,9 +147,10 @@ export default function ProductCustomizer() {
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
             <div className="relative">
               <img
-                src={getPreviewImage()}
-                alt="T-shirt preview"
+                src={selectedTshirt?.imageUrl || '/default-tshirt.svg'}
+                alt={selectedTshirt?.name}
                 className="w-full h-96 object-contain rounded-lg border"
+                onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
               />
               {selectedDesign && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -173,7 +174,7 @@ export default function ProductCustomizer() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Base Price:</span>
-                <span className="font-medium">${product?.price?.toFixed(2)}</span>
+                <span className="font-medium">₹{product?.price?.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Brand:</span>
@@ -329,7 +330,7 @@ export default function ProductCustomizer() {
               disabled={!selectedBrand || !selectedColor || !selectedSize}
               className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold shadow hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              Add to Cart - ${((product?.price || 0) * quantity).toFixed(2)}
+              Add to Cart - ₹{((product?.price || 0) * quantity).toFixed(2)}
             </button>
           </div>
         </div>

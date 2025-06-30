@@ -305,7 +305,7 @@ export default function TshirtUpload() {
         <div>
           <label className="block font-semibold mb-1">Image</label>
           <input name="image" type="file" accept="image/*" onChange={handleFile} className="w-full" />
-          {form.imageUrl && <img src={form.imageUrl} alt="Preview" className="w-32 h-32 object-contain mt-2 rounded border" />}
+          {form.imageUrl && <img src={form.imageUrl || '/default-tshirt.svg'} alt="Preview" className="w-32 h-32 object-contain mt-2 rounded border" />}
         </div>
         <div>
           <label className="block font-semibold mb-1">Description</label>

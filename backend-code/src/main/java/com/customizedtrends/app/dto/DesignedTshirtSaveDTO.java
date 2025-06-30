@@ -26,9 +26,13 @@ public class DesignedTshirtSaveDTO {
     private Integer designPositionY;
     private String tshirtZoom;
     
-    // Image data (base64 encoded)
-    private String imageData;
+    // Cloudinary URLs
+    private String imageUrl;
+    private String thumbnailUrl;
+    private String optimizedUrl;
     private String imageType;
+    private String cloudinaryPublicId;
+    private String cloudinaryVersion;
 
     // Constructors
     public DesignedTshirtSaveDTO() {}
@@ -94,9 +98,22 @@ public class DesignedTshirtSaveDTO {
     public String getTshirtZoom() { return tshirtZoom; }
     public void setTshirtZoom(String tshirtZoom) { this.tshirtZoom = tshirtZoom; }
     
-    public String getImageData() { return imageData; }
-    public void setImageData(String imageData) { this.imageData = imageData; }
+    // Cloudinary URL getters and setters
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+    
+    public String getOptimizedUrl() { return optimizedUrl; }
+    public void setOptimizedUrl(String optimizedUrl) { this.optimizedUrl = optimizedUrl; }
     
     public String getImageType() { return imageType; }
     public void setImageType(String imageType) { this.imageType = imageType; }
+    
+    public String getCloudinaryPublicId() { return cloudinaryPublicId; }
+    public void setCloudinaryPublicId(String cloudinaryPublicId) { this.cloudinaryPublicId = cloudinaryPublicId; }
+    
+    public String getCloudinaryVersion() { return cloudinaryVersion; }
+    public void setCloudinaryVersion(String cloudinaryVersion) { this.cloudinaryVersion = cloudinaryVersion; }
 }
