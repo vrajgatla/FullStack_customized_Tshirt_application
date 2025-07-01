@@ -14,12 +14,12 @@ const categories = [
 export default function ShopByCategory() {
   return (
     <section className="my-16 max-w-5xl mx-auto px-4">
-      <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-gray-800 mb-8">Shop by Category</h2>
+      <h2 className="text-2xl md:text-3xl font-extrabold text-center text-gray-800 mb-8">Shop by Category</h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
         {categories.map((cat, idx) => (
           <Link to={cat.to} key={cat.name} className={`flex flex-col items-center justify-center bg-gradient-to-br ${cat.color} rounded-2xl shadow-lg p-4 hover:scale-105 hover:shadow-2xl transition-all duration-300`}>
             {cat.icon}
-            <span className="mt-2 font-bold text-gray-700 text-sm sm:text-base text-center">{cat.name}</span>
+            <span className="mt-2 font-bold text-gray-700 text-base sm:text-lg text-center">{cat.name}</span>
           </Link>
         ))}
       </div>

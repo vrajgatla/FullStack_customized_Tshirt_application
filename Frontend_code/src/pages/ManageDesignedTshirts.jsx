@@ -224,7 +224,7 @@ const ManageDesignedTshirts = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Designed T-Shirts</h1>
+          <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Manage Designed T-Shirts</h1>
           <p className="text-gray-600">Manage all custom designed t-shirts in your store</p>
         </div>
 
@@ -307,20 +307,18 @@ const ManageDesignedTshirts = () => {
                       <tr key={tshirt.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="relative h-12 w-12">
-                            {/* Loading state */}
-                            {(!imageLoadingStates[tshirt.id] || imageLoadingStates[tshirt.id].loading) && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            {tshirt.images && tshirt.images.length > 0 ? (
+                              <img
+                                src={tshirt.images.find(img => img.isMain)?.imageUrl || tshirt.images[0].imageUrl}
+                                alt={tshirt.name}
+                                className="h-12 w-12 rounded-lg object-cover"
+                                onError={e => { e.currentTarget.src = '/placeholder-design.svg'; }}
+                              />
+                            ) : (
+                              <div className="h-12 w-12 flex items-center justify-center bg-gray-100 rounded-lg text-gray-400 text-xs">
+                                No image
                               </div>
                             )}
-                            
-                            {/* Image */}
-                            <img
-                              src={tshirt.thumbnailUrl || tshirt.imageUrl || '/placeholder-design.svg'}
-                              alt={tshirt.name}
-                              className="h-12 w-12 rounded-lg object-cover"
-                              onError={e => { e.currentTarget.src = '/placeholder-design.svg'; }}
-                            />
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -367,7 +365,7 @@ const ManageDesignedTshirts = () => {
                               <FaDownload />
                             </button>
                             <button
-                              onClick={() => navigate(`/edit-designed-tshirt/${tshirt.id}`)}
+                              onClick={() => navigate(`/admin/edit-designed-tshirt/${tshirt.id}`)}
                               className="text-yellow-600 hover:text-yellow-900"
                               title="Edit"
                             >
@@ -492,15 +490,6 @@ const ManageDesignedTshirts = () => {
                         className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                       >
                         Download
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowModal(false);
-                          navigate(`/edit-designed-tshirt/${selectedTshirt.id}`);
-                        }}
-                        className="flex-1 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700"
-                      >
-                        Edit
                       </button>
                     </div>
                   </div>

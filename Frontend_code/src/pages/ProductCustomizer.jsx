@@ -134,7 +134,7 @@ export default function ProductCustomizer() {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Customize Your T-Shirt</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Product Customizer</h1>
         <p className="text-gray-600">
           Choose your brand, design, color, and size to create your perfect t-shirt
         </p>

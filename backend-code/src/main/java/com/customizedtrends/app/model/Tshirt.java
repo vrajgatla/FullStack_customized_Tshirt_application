@@ -49,6 +49,9 @@ public class Tshirt {
     private String thumbnailUrl;
     private String optimizedUrl;
 
+    @OneToMany(mappedBy = "tshirt", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TshirtImage> images;
+
     public Tshirt() {
         this.createdAt = LocalDateTime.now();
     }
@@ -113,4 +116,7 @@ public class Tshirt {
     public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
     public String getOptimizedUrl() { return optimizedUrl; }
     public void setOptimizedUrl(String optimizedUrl) { this.optimizedUrl = optimizedUrl; }
+
+    public List<TshirtImage> getImages() { return images; }
+    public void setImages(List<TshirtImage> images) { this.images = images; }
 } 

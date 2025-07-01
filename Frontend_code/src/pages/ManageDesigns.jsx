@@ -93,7 +93,7 @@ export default function ManageDesigns() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 bg-white rounded-xl shadow mt-8">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-purple-700">Manage Designs</h1>
+      <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Manage Designs</h1>
       {success && <div className="text-green-600 font-semibold mb-2">Design updated!</div>}
       {error && <div className="text-red-600 font-semibold mb-2">{error}</div>}
       <div className="grid grid-cols-1 gap-4 sm:gap-6">

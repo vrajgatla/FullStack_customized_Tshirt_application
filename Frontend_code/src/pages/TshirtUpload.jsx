@@ -116,8 +116,8 @@ export default function TshirtUpload() {
     stock: '',
     featured: false,
     tags: '',
-    image: null,
-    imageUrl: '',
+    images: [],
+    imageUrls: [],
     description: '',
   });
   const [success, setSuccess] = useState(false);
@@ -128,6 +128,9 @@ export default function TshirtUpload() {
   const [newColor, setNewColor] = useState({ name: '', hexCode: '#CCCCCC' });
   const [colorError, setColorError] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [newImages, setNewImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [mainImageIndex, setMainImageIndex] = useState(0);
 
   useEffect(() => {
     fetch('/api/brands').then(res => res.json()).then(data => setBrands(data.map(b => b.name || b)));
@@ -140,16 +143,28 @@ export default function TshirtUpload() {
     fetch('/api/tshirts/neckTypes').then(res => res.json()).then(data => setNeckTypes(data));
   }, []);
 
-  const handleFile = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setForm(f => ({ ...f, image: e.target.files[0], imageUrl: URL.createObjectURL(e.target.files[0]) }));
+  const handleFiles = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setNewImages(prev => [...prev, ...files]);
+      setImagePreviews(prev => [...prev, ...files.map(file => URL.createObjectURL(file))]);
+      if (mainImageIndex === null && files.length > 0) setMainImageIndex(0);
     }
   };
+  const handleRemoveImage = (idx) => {
+    setNewImages(imgs => imgs.filter((_, i) => i !== idx));
+    setImagePreviews(urls => urls.filter((_, i) => i !== idx));
+    setMainImageIndex(prev => {
+      if (idx === prev) return 0;
+      if (idx < prev) return prev - 1;
+      return prev;
+    });
+  };
+  const handleSetMain = (idx) => setMainImageIndex(idx);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
     const formData = new FormData();
-
     const tshirtDto = {
       name: form.name,
       brand: form.brand,
@@ -166,10 +181,13 @@ export default function TshirtUpload() {
       tags: form.tags,
       description: form.description,
     };
-
     formData.append('tshirt', new Blob([JSON.stringify(tshirtDto)], { type: "application/json" }));
-    formData.append('image', form.image);
-
+    if (newImages && newImages.length > 0) {
+      for (let img of newImages) {
+        formData.append('images', img);
+      }
+      formData.append('mainImageIndex', mainImageIndex);
+    }
     try {
       const res = await fetch('/api/tshirts/upload', {
         method: 'POST',
@@ -179,7 +197,6 @@ export default function TshirtUpload() {
       try {
         data = await res.json();
       } catch (jsonErr) {
-        // If response is not JSON, set a generic error
         setSubmitError('Upload failed: Invalid server response.');
         return;
       }
@@ -189,7 +206,10 @@ export default function TshirtUpload() {
       }
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
-      setForm({ name: '', brand: '', color: '', sizes: [], gender: '', material: '', fit: '', sleeveType: '', neckType: '', price: '', stock: '', featured: false, tags: '', image: null, imageUrl: '', description: '' });
+      setForm({ name: '', brand: '', color: '', sizes: [], gender: '', material: '', fit: '', sleeveType: '', neckType: '', price: '', stock: '', featured: false, tags: '', images: [], imageUrls: [], description: '' });
+      setNewImages([]);
+      setImagePreviews([]);
+      setMainImageIndex(0);
     } catch (err) {
       setSubmitError('Network or server error.');
     }
@@ -249,7 +269,7 @@ export default function TshirtUpload() {
 
   return (
     <div className="w-full min-h-screen max-w-3xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 bg-white rounded-xl shadow mt-8">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-blue-700">Upload New T-Shirt</h1>
+      <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Upload New T-Shirt</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="block font-semibold mb-1">T-shirt Name</label>
@@ -303,9 +323,19 @@ export default function TshirtUpload() {
           <input name="tags" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} className="w-full p-2 border rounded" placeholder="e.g. summer, casual, white" />
         </div>
         <div>
-          <label className="block font-semibold mb-1">Image</label>
-          <input name="image" type="file" accept="image/*" onChange={handleFile} className="w-full" />
-          {form.imageUrl && <img src={form.imageUrl || '/default-tshirt.svg'} alt="Preview" className="w-32 h-32 object-contain mt-2 rounded border" />}
+          <label className="block font-semibold mb-1">Images</label>
+          <input name="images" type="file" accept="image/*" multiple onChange={handleFiles} className="w-full" />
+          {imagePreviews && imagePreviews.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {imagePreviews.map((url, idx) => (
+                <div key={idx} className="relative group">
+                  <img src={url} alt={`Preview ${idx+1}`} className={`w-24 h-24 object-contain rounded border ${mainImageIndex === idx ? 'ring-2 ring-blue-500' : ''}`} />
+                  <button type="button" onClick={() => handleRemoveImage(idx)} className="absolute top-1 right-1 bg-white bg-opacity-80 rounded-full p-1 text-red-600 text-lg font-bold opacity-80 group-hover:opacity-100">&times;</button>
+                  <button type="button" onClick={() => handleSetMain(idx)} className={`absolute bottom-1 left-1 bg-white bg-opacity-80 rounded px-2 py-0.5 text-xs font-semibold ${mainImageIndex === idx ? 'text-blue-600 border border-blue-600' : 'text-gray-600 border border-gray-300'} group-hover:opacity-100`}>{mainImageIndex === idx ? 'Main' : 'Set Main'}</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <label className="block font-semibold mb-1">Description</label>

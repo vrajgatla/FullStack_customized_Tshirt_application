@@ -2,6 +2,7 @@ package com.customizedtrends.app.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 public class DesignedTshirt {
@@ -65,6 +66,9 @@ public class DesignedTshirt {
     private LocalDateTime createdAt;
     private String createdBy; // Admin who created it
     private Boolean isActive;
+
+    @OneToMany(mappedBy = "designedTshirt", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DesignedTshirtImage> images;
 
     public DesignedTshirt() {
         this.createdAt = LocalDateTime.now();
@@ -187,4 +191,7 @@ public class DesignedTshirt {
     
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public List<DesignedTshirtImage> getImages() { return images; }
+    public void setImages(List<DesignedTshirtImage> images) { this.images = images; }
 }

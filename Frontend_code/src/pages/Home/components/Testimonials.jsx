@@ -30,21 +30,21 @@ const testimonials = [
 export default function Testimonials() {
   return (
     <section className="my-20 max-w-7xl mx-auto px-4">
-      <h2 className="text-4xl sm:text-5xl font-extrabold text-center text-gray-800 mb-14">What Our Customers Say</h2>
+      <h2 className="text-lg md:text-xl font-extrabold text-center text-gray-800 mb-10">What Our Customers Say</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
         {testimonials.map((t, idx) => (
           <div key={idx} className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center text-center hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <img src={t.avatar} alt={t.name} className="w-24 h-24 rounded-full mb-6 border-4 border-blue-100 object-cover" />
-            <div className="flex gap-1 mb-2">
+            <img src={t.avatar} alt={t.name} className="w-16 h-16 rounded-full mb-4 border-2 border-blue-100 object-cover" />
+            <div className="flex gap-1 mb-1">
               {[...Array(t.rating)].map((_, i) => (
-                <span key={i} className="text-yellow-400 text-2xl">★</span>
+                <span key={i} className="text-yellow-400 text-lg">★</span>
               ))}
               {[...Array(5 - t.rating)].map((_, i) => (
-                <span key={i} className="text-gray-300 text-2xl">★</span>
+                <span key={i} className="text-gray-300 text-lg">★</span>
               ))}
             </div>
-            <p className="text-gray-700 mb-4 italic text-lg">"{t.quote}"</p>
-            <span className="font-bold text-blue-700 text-lg">{t.name}</span>
+            <p className="text-sm text-gray-700 mb-2 italic">"{t.quote}"</p>
+            <span className="font-semibold text-blue-700 text-sm">{t.name}</span>
           </div>
         ))}
       </div>

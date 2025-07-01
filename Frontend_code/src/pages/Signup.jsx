@@ -26,9 +26,7 @@ export default function Signup() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-lg">
         <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
-            Create Your Account
-          </h2>
+          <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Sign Up</h1>
           <p className="mt-2 text-center text-sm text-gray-600">
             Already have an account?{' '}
             <Link to="/login" className="font-medium text-pink-600 hover:text-pink-500">
@@ -53,7 +51,7 @@ export default function Signup() {
             </div>
                 </div>
           <div>
-            <button type="submit" className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-pink-500 to-purple-500 hover:bg-gradient-to-l focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 shadow-lg hover:scale-105 transition-transform">
+            <button type="submit" className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-md text-white bg-gradient-to-r from-pink-500 to-purple-500 hover:bg-gradient-to-l focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 shadow-lg hover:scale-105 transition-transform">
               Create Account
             </button>
           </div>

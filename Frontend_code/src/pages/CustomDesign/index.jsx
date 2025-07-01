@@ -43,6 +43,15 @@ export default function CustomDesign() {
   const [matchingTshirts, setMatchingTshirts] = useState([]);
   const [selectedTshirt, setSelectedTshirt] = useState(null);
 
+  // Add new states for multi-image custom design workflow
+  const [baseImages, setBaseImages] = useState([]);
+  const [compositedImages, setCompositedImages] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [mainImageIndex, setMainImageIndex] = useState(0);
+
+  // Add modal state and handler
+  const [modalImg, setModalImg] = useState(null);
+
   // Fetch initial data
   useEffect(() => {
     // Fetch genders
@@ -126,14 +135,34 @@ export default function CustomDesign() {
     }
   }, [selectedBrand, selectedColor, selectedGender]);
 
-  // Use selectedTshirt's image for preview
+  // When t-shirt is selected, set baseImages to all its images (or fallback to single image)
   useEffect(() => {
     if (selectedTshirt) {
-      setTshirtImg(selectedTshirt.imageUrl || '/default-tshirt.svg');
+      if (selectedTshirt.images && selectedTshirt.images.length > 0) {
+        setBaseImages(selectedTshirt.images.map(img => img.imageUrl));
+        setCompositedImages(new Array(selectedTshirt.images.length).fill(null));
+      } else {
+        setBaseImages([selectedTshirt.imageUrl || '/default-tshirt.svg']);
+        setCompositedImages([null]);
+      }
+      setCurrentIndex(0);
+      setMainImageIndex(0);
+    } else {
+      setBaseImages([]);
+      setCompositedImages([]);
+      setCurrentIndex(0);
+      setMainImageIndex(0);
+    }
+  }, [selectedTshirt]);
+
+  // Use current base image for preview
+  useEffect(() => {
+    if (baseImages.length > 0) {
+      setTshirtImg(baseImages[currentIndex]);
     } else {
       setTshirtImg('/default-tshirt.svg');
     }
-  }, [selectedTshirt]);
+  }, [baseImages, currentIndex]);
 
   const handleDesignSelect = (design) => {
     setSelectedDesign(design);
@@ -183,19 +212,30 @@ export default function CustomDesign() {
   const generateFinalImage = async () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-    const scale = 2; // For higher resolution
-    
+    const scale = 2; // Higher resolution
     canvas.width = PREVIEW_WIDTH * scale;
     canvas.height = PREVIEW_HEIGHT * scale;
-    ctx.scale(scale, scale);
+    ctx.scale(scale, scale); // Keep all coordinates in screen units
 
+    // Load t-shirt image
         const tshirtImage = new Image();
         tshirtImage.crossOrigin = 'anonymous';
           tshirtImage.src = tshirtImg;
     await tshirtImage.decode();
-    ctx.drawImage(tshirtImage, 0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
-    
-    const designUrl = uploadedDesign || (selectedDesign?.imageUrl);
+  
+    // Fit t-shirt using object-fit: contain
+    const scaleFactor = Math.min(
+      PREVIEW_WIDTH / tshirtImage.width,
+      PREVIEW_HEIGHT / tshirtImage.height
+    );
+    const drawWidth = tshirtImage.width * scaleFactor;
+    const drawHeight = tshirtImage.height * scaleFactor;
+    const offsetX = (PREVIEW_WIDTH - drawWidth) / 2;
+    const offsetY = (PREVIEW_HEIGHT - drawHeight) / 2;
+    ctx.drawImage(tshirtImage, offsetX, offsetY, drawWidth, drawHeight);
+  
+    // Load and draw design
+    const designUrl = uploadedDesign || selectedDesign?.imageUrl;
     if (designUrl) {
         const designImage = new Image();
         designImage.crossOrigin = 'anonymous';
@@ -203,11 +243,26 @@ export default function CustomDesign() {
       await designImage.decode();
       
       const designSize = DESIGN_INITIAL_SIZE * designZoom;
-      const x = designPos.x - designSize / 2;
-      const y = designPos.y - designSize / 2;
+  
+      // Maintain aspect ratio of the design image
+      const imgRatio = designImage.width / designImage.height;
+      let drawW = designSize;
+      let drawH = designSize;
+  
+      if (imgRatio > 1) {
+        // Wider than tall
+        drawH = designSize / imgRatio;
+      } else {
+        // Taller than wide or square
+        drawW = designSize * imgRatio;
+      }
+  
+      const adjustedX = designPos.x - drawW / 2;
+      const adjustedY = designPos.y - drawH / 2;
       
-      ctx.drawImage(designImage, x, y, designSize, designSize);
+      ctx.drawImage(designImage, adjustedX, adjustedY, drawW, drawH);
     }
+  
     return canvas.toDataURL('image/png');
   };
 
@@ -247,37 +302,66 @@ export default function CustomDesign() {
     }
   };
 
+  const handleSaveView = async () => {
+    const finalImage = await generateFinalImage();
+    const finalImageBlob = await (await fetch(finalImage)).blob();
+    setCompositedImages(prev => {
+      const arr = [...prev];
+      arr[currentIndex] = finalImageBlob;
+      return arr;
+    });
+    toast.success(`Saved view #${currentIndex + 1}`);
+  };
+
+  const handleRemoveComposited = (idx) => {
+    setCompositedImages(prev => prev.map((img, i) => (i === idx ? null : img)));
+    if (mainImageIndex === idx) setMainImageIndex(0);
+  };
+
+  const handleSetMain = (idx) => setMainImageIndex(idx);
+
   const handleSave = async () => {
     if (!selectedBrand || !selectedColor || !selectedGender || !selectedSize) {
       toast.error("Please select all T-shirt options before saving.");
       return;
     }
-    if (!selectedDesign && !uploadedDesign) {
-      toast.error("Please select or upload a design to save.");
+    if (!compositedImages.some(img => img)) {
+      toast.error("Please save at least one view before saving the design.");
       return;
     }
-
     setLoading(prev => ({...prev, save: true}));
     try {
-      const finalImage = await generateFinalImage();
-      const finalImageBlob = await (await fetch(finalImage)).blob();
       const formData = new FormData();
-      
-      formData.append('name', `Custom ${selectedDesign?.name || 'Design'}`);
-      formData.append('brandName', selectedBrand);
-      formData.append('colorName', selectedColor);
-      formData.append('gender', selectedGender);
-      formData.append('size', selectedSize);
-      formData.append('designId', selectedDesign?.id || null);
-      formData.append('image', finalImageBlob, 'custom-design.png');
-      
-      const response = await fetch('/api/designed-tshirts', {
+      const designDto = {
+        name: `Custom ${selectedDesign?.name || 'Design'}`,
+        brandId: selectedTshirt?.brand?.id || null,
+        colorId: selectedTshirt?.color?.id || null,
+        designId: selectedDesign?.id || null,
+        sizes: [selectedSize],
+        gender: selectedGender,
+        material: selectedTshirt?.material || '',
+        fit: selectedTshirt?.fit || '',
+        sleeveType: selectedTshirt?.sleeveType || '',
+        neckType: selectedTshirt?.neckType || '',
+        price: selectedTshirt?.price || 0,
+        stock: selectedTshirt?.stock || 0,
+        featured: selectedTshirt?.featured || false,
+        tags: selectedTshirt?.tags || '',
+        description: selectedTshirt?.description || '',
+        customDesignName: uploadedDesign ? 'Custom Upload' : (selectedDesign?.name || ''),
+        designZoom: designZoom,
+        designPositionX: designPos.x,
+        designPositionY: designPos.y,
+        tshirtZoom: '1',
+      };
+      formData.append('designedTshirt', JSON.stringify(designDto));
+      compositedImages.forEach(img => { if (img) formData.append('images', img); });
+      formData.append('mainImageIndex', mainImageIndex);
+      const response = await fetch('/api/designed-tshirts/custom-design/upload', {
         method: 'POST',
         body: formData
       });
-      
       if (!response.ok) throw new Error('Failed to save design');
-      
       toast.success("Your design has been saved!");
     } catch (error) {
       console.error("Failed to save design:", error);
@@ -336,7 +420,7 @@ export default function CustomDesign() {
       <div className="flex flex-col gap-8">
         {/* T-Shirt Options */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3"><FaTshirt className="text-pink-500" /> T-Shirt Options</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3"><FaTshirt className="text-pink-500" /> T-Shirt Options</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="font-semibold text-gray-600 block mb-1">Gender</label>
@@ -382,7 +466,7 @@ export default function CustomDesign() {
 
         {/* Design Options */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3"><FaPalette className="text-purple-500" /> Choose a Design</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3"><FaPalette className="text-purple-500" /> Choose a Design</h2>
           <div className="mb-4">
             <label htmlFor="design-upload" className="w-full text-center cursor-pointer bg-gray-100 hover:bg-gray-200 border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center gap-2">
               <FaUpload className="text-2xl text-gray-500"/>
@@ -404,7 +488,7 @@ export default function CustomDesign() {
         
         {/* Actions */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Finalize</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Finalize</h2>
           <div className="flex flex-col gap-3">
             <button onClick={handleAddToCart} disabled={loading.addToCart} className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform disabled:opacity-50">
               <FaShoppingCart /> {loading.addToCart ? 'Adding...' : 'Add to Cart'}
@@ -419,6 +503,47 @@ export default function CustomDesign() {
             )}
           </div>
         </div>
+
+        {/* BASE IMAGE GALLERY */}
+        {baseImages.length > 1 && (
+          <div className="flex gap-2 mb-4">
+            {baseImages.map((img, idx) => (
+              <div key={idx} className={`relative w-20 h-20 border-2 rounded-lg cursor-pointer ${currentIndex === idx ? 'border-pink-500' : 'border-gray-200'}`} onClick={() => setCurrentIndex(idx)}>
+                <img src={img} alt={`View ${idx+1}`} className="w-full h-full object-contain rounded" />
+                {compositedImages[idx] && <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">Saved</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* COMPOSITED IMAGE GALLERY */}
+        {compositedImages.some(img => img) && (
+          <div className="mt-4">
+            <h3 className="font-semibold text-gray-700 mb-2">Composited Views:</h3>
+            <div className="flex gap-2 flex-wrap">
+              {compositedImages.map((img, idx) => img && (
+                <div key={idx} className="relative w-24 h-24 border-2 rounded-lg cursor-pointer" onClick={() => setModalImg(URL.createObjectURL(img))}>
+                  <img src={URL.createObjectURL(img)} alt={`Composited ${idx+1}`} className={`w-full h-full object-contain rounded ${mainImageIndex === idx ? 'ring-2 ring-blue-500' : ''}`} />
+                  <button type="button" onClick={e => { e.stopPropagation(); handleRemoveComposited(idx); }} className="absolute top-1 right-1 bg-white bg-opacity-80 rounded-full p-1 text-red-600 text-lg font-bold">&times;</button>
+                  <button type="button" onClick={e => { e.stopPropagation(); handleSetMain(idx); }} className={`absolute bottom-1 left-1 bg-white bg-opacity-80 rounded px-2 py-0.5 text-xs font-semibold ${mainImageIndex === idx ? 'text-blue-600 border border-blue-600' : 'text-gray-600 border border-gray-300'}`}>{mainImageIndex === idx ? 'Main' : 'Set Main'}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Modal for large preview */}
+        {modalImg && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70" onClick={() => setModalImg(null)}>
+            <div className="bg-white rounded-lg shadow-lg p-4 max-w-2xl w-full flex flex-col items-center relative" onClick={e => e.stopPropagation()}>
+              <button className="absolute top-2 right-2 text-2xl text-gray-600 hover:text-pink-500" onClick={() => setModalImg(null)}>&times;</button>
+              <img src={modalImg} alt="Large preview" className="max-w-full max-h-[80vh] rounded" />
+            </div>
+          </div>
+        )}
+
+        {/* Add a button to save the current view */}
+        <button onClick={handleSaveView} className="w-full bg-green-600 text-white font-bold py-2 rounded-lg mt-4">Save This View</button>
       </div>
     </div>
   );

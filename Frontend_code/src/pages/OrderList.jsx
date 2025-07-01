@@ -127,7 +127,11 @@ export default function OrderList() {
                     <div key={index} className="flex items-center gap-4 bg-gray-50 rounded-lg p-3">
                       <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
                         <img
-                          src={item.imageUrl || '/default-tshirt.svg'}
+                          src={
+                            (item.images && item.images.length > 0 &&
+                              (item.images.find(img => img.isMain) ? item.images.find(img => img.isMain).imageUrl : item.images[0].imageUrl)
+                            ) || item.imageUrl || '/default-tshirt.svg'
+                          }
                           alt={item.name}
                           className="w-16 h-16 object-contain rounded border"
                           onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}

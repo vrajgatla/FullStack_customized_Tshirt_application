@@ -1,6 +1,7 @@
 package com.customizedtrends.app.controller;
 
 import com.customizedtrends.app.model.DesignedTshirt;
+import com.customizedtrends.app.model.DesignedTshirtImage;
 import com.customizedtrends.app.model.Brand;
 import com.customizedtrends.app.model.Color;
 import com.customizedtrends.app.model.Design;
@@ -23,8 +24,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/designed-tshirts")
@@ -205,6 +208,22 @@ public class DesignedTshirtController {
             designedTshirts = designedTshirtService.getAllActiveDesignedTshirts(pageable);
         }
         
+        // Patch: ensure every DesignedTshirt has images array
+        designedTshirts.forEach(dt -> {
+            if (dt.getImages() == null || dt.getImages().isEmpty()) {
+                if (dt.getImageUrl() != null && !dt.getImageUrl().isEmpty()) {
+                    DesignedTshirtImage virtualImg = new DesignedTshirtImage();
+                    virtualImg.setImageUrl(dt.getImageUrl());
+                    virtualImg.setIsMain(true);
+                    // Do not set designedTshirt to avoid recursion
+                    ArrayList<DesignedTshirtImage> imgs = new ArrayList<>();
+                    imgs.add(virtualImg);
+                    dt.setImages(imgs);
+                } else {
+                    dt.setImages(new ArrayList<>());
+                }
+            }
+        });
         return ResponseEntity.ok(designedTshirts);
     }
 
@@ -213,7 +232,20 @@ public class DesignedTshirtController {
     public ResponseEntity<?> getDesignedTshirtById(@PathVariable Long id) {
         Optional<DesignedTshirt> designedTshirt = designedTshirtService.getDesignedTshirtById(id);
         if (designedTshirt.isPresent()) {
-            return ResponseEntity.ok(designedTshirt.get());
+            DesignedTshirt dt = designedTshirt.get();
+            if (dt.getImages() == null || dt.getImages().isEmpty()) {
+                if (dt.getImageUrl() != null && !dt.getImageUrl().isEmpty()) {
+                    DesignedTshirtImage virtualImg = new DesignedTshirtImage();
+                    virtualImg.setImageUrl(dt.getImageUrl());
+                    virtualImg.setIsMain(true);
+                    ArrayList<DesignedTshirtImage> imgs = new ArrayList<>();
+                    imgs.add(virtualImg);
+                    dt.setImages(imgs);
+                } else {
+                    dt.setImages(new ArrayList<>());
+                }
+            }
+            return ResponseEntity.ok(dt);
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -360,5 +392,28 @@ public class DesignedTshirtController {
         long activeCount = designedTshirtRepository.countByIsActiveTrue();
         String debugInfo = String.format("Total designed t-shirts: %d, Active designed t-shirts: %d", totalCount, activeCount);
         return ResponseEntity.ok(debugInfo);
+    }
+
+    @PostMapping("/custom-design/upload")
+    public ResponseEntity<?> uploadDesignedTshirt(
+        @RequestPart("designedTshirt") String designedTshirtJson,
+        @RequestPart(value = "images", required = false) List<MultipartFile> images,
+        @RequestPart(value = "mainImageIndex", required = false) String mainImageIndexStr
+    ) {
+        try {
+            DesignedTshirtSaveDTO dto = objectMapper.readValue(designedTshirtJson, DesignedTshirtSaveDTO.class);
+            Integer mainImageIndex = null;
+            if (mainImageIndexStr != null && !mainImageIndexStr.isEmpty()) {
+                mainImageIndex = Integer.valueOf(mainImageIndexStr);
+            }
+            System.out.println("[UPLOAD] DesignedTshirt DTO: " + dto);
+            System.out.println("[UPLOAD] Images count: " + (images != null ? images.size() : 0));
+            System.out.println("[UPLOAD] Main image index: " + mainImageIndex);
+            DesignedTshirt saved = designedTshirtService.createDesignedTshirtWithImages(dto, images, mainImageIndex);
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error uploading designed t-shirt: " + e.getMessage());
+        }
     }
 }

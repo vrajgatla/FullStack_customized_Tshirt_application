@@ -16,7 +16,10 @@ export default function EditDesignedTshirt() {
   const [brands, setBrands] = useState([]);
   const [colors, setColors] = useState([]);
   const [designs, setDesigns] = useState([]);
-  const [newImage, setNewImage] = useState(null);
+  const [images, setImages] = useState([]);
+  const [removedImages, setRemovedImages] = useState([]);
+  const [mainImageId, setMainImageId] = useState(null);
+  const [newImages, setNewImages] = useState([]);
   const [form, setForm] = useState({
     name: '',
     brandId: '',
@@ -91,6 +94,10 @@ export default function EditDesignedTshirt() {
       setBrands(brandsData);
       setColors(colorsData);
       setDesigns(designsData.content || designsData);
+
+      // In loadData, after setDesignedTshirt(tshirtData):
+      setImages(tshirtData.images || []);
+      setMainImageId((tshirtData.images && tshirtData.images.find(img => img.isMain)?.id) || null);
     } catch (err) {
       setError('Failed to load designed t-shirt data: ' + err.message);
     } finally {
@@ -129,7 +136,20 @@ export default function EditDesignedTshirt() {
         sizes: Array.isArray(form.sizes) ? form.sizes : form.sizes.split(',').map(s => s.trim()).filter(s => s)
       };
 
-      await apiService.updateDesignedTshirt(id, updateData, newImage, token);
+      // In handleSubmit, append new images, removedImages, and mainImageId to FormData
+      const formData = new FormData();
+      formData.append('designedTshirt', JSON.stringify(updateData));
+      if (newImages.length > 0) {
+        newImages.forEach(img => formData.append('images', img));
+      }
+      if (removedImages.length > 0) {
+        formData.append('removedImages', JSON.stringify(removedImages));
+      }
+      if (mainImageId) {
+        formData.append('mainImageId', mainImageId);
+      }
+
+      await apiService.updateDesignedTshirt(id, formData, null, token);
       
       setSuccess(true);
       setTimeout(() => {
@@ -195,7 +215,7 @@ export default function EditDesignedTshirt() {
               >
                 <FaArrowLeft className="h-5 w-5" />
               </button>
-              <h1 className="text-3xl font-bold text-gray-900">Edit Designed T-Shirt</h1>
+              <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Edit Designed T-Shirt</h1>
             </div>
             <button
               onClick={handleDelete}
@@ -538,36 +558,48 @@ export default function EditDesignedTshirt() {
             </div>
 
             {/* Image Upload */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Image</h3>
-              <div className="space-y-4">
-                {designedTshirt && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Current Image
-                    </label>
-                    <div className="w-48 h-48 border rounded-lg overflow-hidden bg-gray-50">
-                      <img
-                        src={designedTshirt.imageUrl || '/default-tshirt.svg'}
-                        alt={designedTshirt.name}
-                        className="w-full h-full object-contain"
-                        onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
-                      />
-                    </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {images.map((img, idx) => (
+                  <div key={img.id || idx} className="relative">
+                    <img src={img.imageUrl} alt={`Tshirt ${idx+1}`} className={`w-16 h-16 object-contain rounded border ${mainImageId === img.id ? 'border-pink-500' : 'border-gray-300'}`} />
+                    <button
+                      type="button"
+                      className={`absolute top-1 right-1 px-2 py-1 text-xs rounded ${mainImageId === img.id ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                      onClick={() => setMainImageId(img.id)}
+                      disabled={mainImageId === img.id}
+                    >
+                      {mainImageId === img.id ? 'Main' : 'Set Main'}
+                    </button>
+                    <button
+                      type="button"
+                      className="absolute bottom-1 right-1 px-2 py-1 text-xs rounded bg-red-500 text-white"
+                      onClick={() => {
+                        setRemovedImages([...removedImages, img.id]);
+                        setImages(images.filter(i => i.id !== img.id));
+                        if (mainImageId === img.id) setMainImageId(null);
+                      }}
+                    >
+                      Remove
+                    </button>
                   </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Upload New Image (optional)
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setNewImage(e.target.files[0])}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+                ))}
               </div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={e => setNewImages([...newImages, ...Array.from(e.target.files)])}
+                className="p-2 border rounded w-full"
+              />
+              {newImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {newImages.map((img, idx) => (
+                    <img key={idx} src={URL.createObjectURL(img)} alt={`New ${idx+1}`} className="w-16 h-16 object-contain rounded border border-blue-400" />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Submit Buttons */}

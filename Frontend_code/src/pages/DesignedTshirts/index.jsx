@@ -171,7 +171,7 @@ export default function DesignedTshirts() {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">Community Designs</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Designed T-Shirts</h1>
         <p className="text-lg text-gray-600 mt-2">Explore unique T-shirts created by our talented community.</p>
         </div>
       <div className="flex flex-col md:flex-row gap-8">

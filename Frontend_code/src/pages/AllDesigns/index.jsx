@@ -42,7 +42,7 @@ export default function AllDesigns() {
 
   return (
     <div className="w-full min-h-screen max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 bg-gradient-to-br from-purple-50 via-blue-50 to-white animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-purple-800 mb-6 md:mb-10 tracking-tight">All Designs</h1>
+      <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">All Designs</h1>
       {loading ? (
         <div className="text-gray-500 mt-8">Loading designs...</div>
       ) : (

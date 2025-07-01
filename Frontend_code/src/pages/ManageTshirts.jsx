@@ -7,9 +7,28 @@ export default function ManageTshirts() {
   const { user, token } = useAuth();
   const [tshirts, setTshirts] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState({
+    name: '',
+    brand: null,
+    color: null,
+    sizes: [],
+    gender: '',
+    material: '',
+    fit: '',
+    sleeveType: '',
+    neckType: '',
+    price: '',
+    stock: '',
+    featured: false,
+    tags: '',
+    description: '',
+    images: [],
+    newImages: [],
+    removedImages: [],
+    mainImageId: null,
+  });
   const [success, setSuccess] = useState(false);
-  const [newImage, setNewImage] = useState(null);
+  const [newImageUrls, setNewImageUrls] = useState([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -150,8 +169,8 @@ export default function ManageTshirts() {
     setLoading(true);
     setError('');
     
-    if (newImage) {
-      setUpdateStatus('Preparing form data with image...');
+    if (form.newImages && form.newImages.length > 0) {
+      setUpdateStatus('Preparing form data with images...');
       try {
         const formData = new FormData();
         
@@ -174,10 +193,18 @@ export default function ManageTshirts() {
         };
         
         formData.append('tshirt', new Blob([JSON.stringify(tshirtData)], { type: 'application/json' }));
-        formData.append('image', newImage);
+        form.newImages.forEach(img => formData.append('images', img));
+        
+        if (form.removedImages && form.removedImages.length > 0) {
+          formData.append('removedImages', JSON.stringify(form.removedImages));
+        }
+        
+        if (form.mainImageId) {
+          formData.append('mainImageId', form.mainImageId);
+        }
         
         setUpdateStatus('Sending update request to server...');
-        const res = await fetch(`/api/tshirts/id/${form.id}/update-with-image`, {
+        const res = await fetch(`/api/tshirts/${form.id}/update-with-image`, {
           method: 'PUT',
           body: formData,
         });
@@ -192,7 +219,7 @@ export default function ManageTshirts() {
         setUpdateStatus('Update successful! Refreshing data...');
         setSuccess(true);
         setEditing(null);
-        setNewImage(null);
+        setForm(f => ({ ...f, newImages: [], removedImages: [], mainImageId: null }));
         loadTshirts();
         setTimeout(() => setSuccess(false), 3000);
       } catch (err) {
@@ -225,8 +252,16 @@ export default function ManageTshirts() {
         
         formData.append('tshirt', new Blob([JSON.stringify(tshirtData)], { type: 'application/json' }));
         
+        if (form.removedImages && form.removedImages.length > 0) {
+          formData.append('removedImages', JSON.stringify(form.removedImages));
+        }
+        
+        if (form.mainImageId) {
+          formData.append('mainImageId', form.mainImageId);
+        }
+        
         setUpdateStatus('Sending update request to server...');
-        const res = await fetch(`/api/tshirts/id/${form.id}/update-with-image`, {
+        const res = await fetch(`/api/tshirts/${form.id}/update-with-image`, {
           method: 'PUT',
           body: formData,
         });
@@ -286,9 +321,19 @@ export default function ManageTshirts() {
     }
   };
 
+  // Function to set main image
+  const setMainImage = async (tshirtId, imageId) => {
+    try {
+      await fetch(`/api/tshirts/${tshirtId}/main-image/${imageId}`, { method: 'POST' });
+      loadTshirts();
+    } catch (err) {
+      alert('Failed to set main image');
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 bg-white rounded-xl shadow mt-8">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-blue-700">Manage T-Shirts</h1>
+      <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Manage T-Shirts</h1>
       {success && <div className="text-green-600 font-semibold mb-2 p-2 bg-green-100 rounded">✅ T-shirt updated successfully!</div>}
       {error && <div className="text-red-600 font-semibold mb-2 p-2 bg-red-100 rounded">❌ {error}</div>}
       {updateStatus && <div className="text-blue-600 font-semibold mb-2 p-2 bg-blue-100 rounded">🔄 {updateStatus}</div>}
@@ -433,7 +478,12 @@ export default function ManageTshirts() {
             <div key={tshirt.id} className="border rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center">
               <div className="w-24 h-24 flex items-center justify-center bg-gray-100 rounded border mb-2 sm:mb-0 overflow-hidden">
                 <img
-                  src={tshirt.thumbnailUrl || tshirt.imageUrl || '/default-tshirt.svg'}
+                  src={
+                    (tshirt.images && tshirt.images.length > 0 && (tshirt.images.find(img => img.isMain)?.imageUrl || tshirt.images[0].imageUrl))
+                    || tshirt.thumbnailUrl
+                    || tshirt.imageUrl
+                    || '/default-tshirt.svg'
+                  }
                   alt={tshirt.name}
                   className="w-full h-full object-contain"
                   onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
@@ -488,6 +538,22 @@ export default function ManageTshirts() {
                   {deleting === tshirt.id ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
+              {tshirt.images && tshirt.images.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {tshirt.images.map((img, idx) => (
+                    <div key={img.id || idx} className="relative">
+                      <img src={img.imageUrl} alt={`Tshirt ${idx+1}`} className={`w-16 h-16 object-contain rounded border ${img.isMain ? 'border-pink-500' : 'border-gray-300'}`} />
+                      <button
+                        className={`absolute top-1 right-1 px-2 py-1 text-xs rounded ${img.isMain ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        onClick={() => setMainImage(tshirt.id, img.id)}
+                        disabled={img.isMain}
+                      >
+                        {img.isMain ? 'Main' : 'Set Main'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -542,10 +608,48 @@ export default function ManageTshirts() {
               </label>
               <input name="tags" value={form.tags || ''} onChange={handleChange} className="p-2 border rounded w-full" placeholder="Tags" />
               <textarea name="description" value={form.description || ''} onChange={handleChange} className="p-2 border rounded w-full" placeholder="Description" />
-              <input type="file" accept="image/*" onChange={e => setNewImage(e.target.files[0])} className="p-2 border rounded w-full" />
-              <div className="text-sm text-gray-600">
-                Note: Uploading a new image will automatically replace the existing image.
-              </div>
+              {form.images && form.images.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {form.images.map((img, idx) => (
+                    <div key={`db-${img.id}`} className="relative">
+                      <img src={img.imageUrl} alt={`Tshirt ${idx+1}`} className={`w-24 h-24 object-contain rounded border ${img.isMain ? 'border-pink-500' : 'border-gray-300'}`} />
+                      <button type="button" className="absolute top-1 right-1 px-2 py-1 text-xs rounded bg-red-500 text-white" onClick={() => {
+                        setForm(f => ({
+                          ...f,
+                          images: f.images.filter((_, i) => i !== idx),
+                          removedImages: [...(f.removedImages || []), img.id].filter(Boolean)
+                        }));
+                      }}>×</button>
+                      <button type="button" className={`absolute bottom-1 left-1 px-2 py-1 text-xs rounded ${img.isMain ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => {
+                        setForm(f => ({
+                          ...f,
+                          images: f.images.map((im, i) => ({ ...im, isMain: i === idx })),
+                          mainImageId: img.id || null
+                        }));
+                      }} disabled={img.isMain}>{img.isMain ? 'Main' : 'Set Main'}</button>
+                    </div>
+                  ))}
+                  {form.newImages && form.newImages.length > 0 && form.newImages.map((img, idx) => (
+                    <div key={`new-${idx}`} className="relative">
+                      <img src={URL.createObjectURL(img)} alt={`New Tshirt ${idx+1}`} className="w-24 h-24 object-contain rounded border border-gray-300" />
+                      <button type="button" className="absolute top-1 right-1 px-2 py-1 text-xs rounded bg-red-500 text-white" onClick={() => {
+                        setForm(f => ({
+                          ...f,
+                          newImages: f.newImages.filter((_, i) => i !== idx)
+                        }));
+                      }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="block font-semibold mb-1 mt-2">Add More Images</label>
+              <input type="file" accept="image/*" multiple onChange={e => {
+                const files = Array.from(e.target.files);
+                setForm(f => ({
+                  ...f,
+                  newImages: [...(f.newImages || []), ...files],
+                }));
+              }} className="p-2 border rounded w-full" />
             </div>
             <button type="submit" disabled={loading} className={`px-6 py-2 rounded font-bold w-full ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>
               {loading ? 'Updating...' : 'Update'}

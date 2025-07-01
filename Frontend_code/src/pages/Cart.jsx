@@ -14,7 +14,7 @@ export default function Cart() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-8">Shopping Cart</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Shopping Cart</h1>
 
         {cartItems.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl shadow-lg">
@@ -57,7 +57,7 @@ export default function Cart() {
             {/* Order Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-                <h2 className="font-bold text-xl mb-4">Order Summary</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Order Summary</h2>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-semibold">₹{getCartTotal().toFixed(2)}</span>

@@ -7,7 +7,7 @@ export default function OrderSuccess() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full text-center bg-white p-10 rounded-2xl shadow-lg">
         <FaCheckCircle className="text-green-500 text-6xl mx-auto mb-6 animate-bounce" />
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Order Placed Successfully!</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-green-600 mb-6">Order Successful!</h1>
         <p className="text-gray-600 mb-8">
           Thank you for your purchase. Your order is being processed and you will receive a confirmation email shortly.
         </p>

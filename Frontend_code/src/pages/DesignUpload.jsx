@@ -129,7 +129,7 @@ export default function DesignUpload() {
 
   return (
     <div className="w-full min-h-screen max-w-xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 bg-white rounded-xl shadow mt-8">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-purple-700">Upload New Design</h1>
+      <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Upload Design</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="block font-semibold mb-1">Design Name</label>

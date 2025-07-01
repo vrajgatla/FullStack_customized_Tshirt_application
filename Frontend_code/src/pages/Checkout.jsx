@@ -46,7 +46,7 @@ export default function Checkout() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-8 text-center">Secure Checkout</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Checkout</h1>
         
         {/* Progress Bar */}
         <div className="w-full max-w-2xl mx-auto mb-8">
@@ -69,7 +69,7 @@ export default function Checkout() {
             <form onSubmit={handleSubmit}>
               {step === 1 && (
                 <section>
-                  <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><FaTruck /> Shipping Details</h2>
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Shipping Address</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" className="p-3 border rounded-lg w-full" />
                     <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className="p-3 border rounded-lg w-full" />
@@ -82,7 +82,7 @@ export default function Checkout() {
               )}
               {step === 2 && (
                 <section>
-                  <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><FaCreditCard /> Payment Details</h2>
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Payment Details</h2>
                   <div className="grid grid-cols-1 gap-4">
                     <input name="cardName" onChange={handleInputChange} placeholder="Name on Card" className="p-3 border rounded-lg" />
                     <input name="cardNumber" onChange={handleInputChange} placeholder="Card Number" className="p-3 border rounded-lg" />

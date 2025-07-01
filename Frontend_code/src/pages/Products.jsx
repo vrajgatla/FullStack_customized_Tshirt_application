@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FaTshirt, FaPalette, FaShoppingCart, FaEye, FaStar, FaSearch, FaFilter, FaTimes } from 'react-icons/fa';
 import apiService from '../utils/api';
 import ProductCard from '../Components/ProductCard';
+import SizeChart from '../Components/SizeChart';
 
 const genderOptions = [
   { value: 'Men', label: 'Men' },
@@ -206,6 +207,14 @@ export default function Products() {
             </select>
           </div>
           <ProductGrid products={tshirts} loading={loading} />
+          {/* SizeChart: Desktop only, before You Might Also Like */}
+          <div className="hidden md:block mt-8">
+            <SizeChart />
+          </div>
+          {/* SizeChart: Mobile only, before You Might Also Like */}
+          <div className="block md:hidden mt-4 mb-8 px-2">
+            <SizeChart />
+          </div>
         </main>
         </div>
     </div>

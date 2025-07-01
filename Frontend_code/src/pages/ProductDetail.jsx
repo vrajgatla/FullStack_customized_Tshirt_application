@@ -4,14 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import ProductCard from '../Components/ProductCard';
 import { FaShoppingCart, FaPalette, FaShieldAlt, FaStar, FaTags } from 'react-icons/fa';
-
-// Mock related products
-const mockRelatedProducts = [
-  { id: 101, name: 'Urban Explorer Tee', price: 24.99, imageUrl: '/default-tshirt.svg' },
-  { id: 102, name: 'Vintage Vibe Tee', price: 22.99, imageUrl: '/default-tshirt.svg' },
-  { id: 103, name: 'Artisan Sketch Tee', price: 29.99, imageUrl: '/default-tshirt.svg' },
-  { id: 104, name: 'Graffiti Pop Tee', price: 27.99, imageUrl: '/default-tshirt.svg' },
-];
+import SizeChart from '../Components/SizeChart';
+import FeaturedProductsCarousel from '../pages/Home/components/FeaturedProductsCarousel';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -24,14 +18,23 @@ export default function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState('');
-  const [relatedProducts, setRelatedProducts] = useState(mockRelatedProducts);
+  const [gallery, setGallery] = useState([]);
+  const [designedTshirts, setDesignedTshirts] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
 
   useEffect(() => {
     fetch(`/api/tshirts/id/${id}`)
       .then(res => res.ok ? res.json() : Promise.reject(res))
       .then(data => {
         setProduct(data);
-        setMainImage(data.imageUrl);
+        if (data.images && data.images.length > 0) {
+          const mainImg = data.images.find(img => img.isMain) || data.images[0];
+          setMainImage(mainImg.imageUrl);
+          setGallery(data.images.map(img => img.imageUrl));
+        } else {
+          setMainImage(data.imageUrl);
+          setGallery(data.imageUrl ? [data.imageUrl] : []);
+        }
         setSelectedSize(data.sizes?.[0] || '');
         setLoading(false);
       })
@@ -40,6 +43,15 @@ export default function ProductDetail() {
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    fetch('/api/designed-tshirts')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        setDesignedTshirts(data || []);
+        setTrendingLoading(false);
+      });
+  }, []);
 
   const handleAddToCart = () => {
     // Add to cart logic here
@@ -56,26 +68,39 @@ export default function ProductDetail() {
           {/* Image Gallery */}
           <div className="bg-white rounded-xl shadow-lg p-4">
             <img src={mainImage || '/default-tshirt.svg'} alt={product.name} className="w-full h-[400px] lg:h-[500px] object-contain rounded-lg" />
+            {gallery.length > 1 && (
+              <div className="flex gap-2 mt-2">
+                {gallery.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Gallery ${idx+1}`}
+                    className={`w-16 h-16 object-contain rounded border cursor-pointer ${mainImage === img ? 'border-pink-500' : 'border-gray-300'}`}
+                    onClick={() => setMainImage(img)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
           <div>
-            <p className="text-gray-500 font-semibold">{product.brand?.name}</p>
-            <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-2">{product.name}</h1>
+            <p className="text-sm font-medium text-gray-500">{product.brand?.name}</p>
+            <h1 className="text-2xl lg:text-4xl font-extrabold text-gray-900 mb-2">{product.name}</h1>
             <div className="flex items-center gap-2 mb-4">
               <div className="flex text-yellow-400"><FaStar /><FaStar /><FaStar /><FaStar /><FaStar /></div>
-              <span className="text-gray-600">(98 Reviews)</span>
+              <span className="text-sm text-gray-600">(98 Reviews)</span>
             </div>
 
             <div className="flex items-baseline gap-3 mb-6">
-              <span className="text-3xl font-bold text-pink-600">₹{product.price.toFixed(2)}</span>
-              <span className="text-gray-400 line-through">₹{(product.price * 1.4).toFixed(2)}</span>
-              <span className="text-green-500 font-bold">(30% OFF)</span>
+              <span className="text-2xl font-extrabold text-pink-600">₹{product.price.toFixed(2)}</span>
+              <span className="text-base text-gray-400 line-through">₹{(product.price * 1.4).toFixed(2)}</span>
+              <span className="text-sm text-green-500 font-bold">(30% OFF)</span>
             </div>
 
             {/* Size Selector */}
             <div className="mb-6">
-              <h3 className="font-semibold text-lg mb-2">Select Size</h3>
+              <h3 className="font-bold text-lg mb-2 text-gray-800">Select Size</h3>
               <div className="flex flex-wrap gap-3">
                 {product.sizes.map(size => (
                   <button key={size} onClick={() => setSelectedSize(size)} className={`px-6 py-2 border-2 rounded-lg font-bold transition-all duration-200 ${selectedSize === size ? 'bg-pink-500 text-white border-pink-500' : 'border-gray-300 hover:border-pink-400'}`}>{size}</button>
@@ -108,12 +133,32 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* You Might Also Like */}
+        {/* SizeChart: Desktop only, before You Might Also Like */}
+        <div className="hidden md:block mt-8">
+          <SizeChart />
+        </div>
+        {/* SizeChart: Mobile only, before You Might Also Like */}
+        <div className="block md:hidden mt-4 mb-8 px-4">
+          <SizeChart />
+        </div>
+        {/* You Might Also Like (Trending Now) */}
         <div className="mt-20">
-          <h2 className="text-2xl font-bold text-center mb-8">You Might Also Like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {relatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Trending Now</h2>
+            <Link to="/designed-tshirts" className="text-pink-600 hover:text-purple-600 font-semibold text-lg flex items-center gap-2 hover:underline transition-colors duration-200">
+              See All
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
           </div>
+          {trendingLoading ? (
+            <div className="text-gray-500 mt-8 text-center py-12">Loading latest trends...</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+              {designedTshirts.slice(0, 4).map((designedTshirt) => (
+                <ProductCard key={designedTshirt.id} product={designedTshirt} type="designed-tshirt" />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

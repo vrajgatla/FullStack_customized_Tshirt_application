@@ -16,7 +16,7 @@ export default function Account() {
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">My Account</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">My Account</h1>
         <p className="text-gray-600">
           Manage your profile and view your order history
         </p>
@@ -35,7 +35,7 @@ export default function Account() {
               />
             )}
             <div>
-              <h2 className="text-xl font-semibold text-gray-800">{user?.name}</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">{user?.name}</h2>
               <p className="text-gray-600">{user?.email}</p>
               {isAdmin() && (
                 <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">

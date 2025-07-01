@@ -4,14 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import ProductCard from '../Components/ProductCard';
 import { FaShoppingCart, FaHeart, FaShieldAlt, FaStar, FaTags } from 'react-icons/fa';
-
-// Mock related products
-const mockRelatedProducts = [
-  { id: 101, name: 'Urban Explorer Tee', price: 24.99, imageUrl: '/default-tshirt.svg' },
-  { id: 102, name: 'Vintage Vibe Tee', price: 22.99, imageUrl: '/default-tshirt.svg' },
-  { id: 103, name: 'Artisan Sketch Tee', price: 29.99, imageUrl: '/default-tshirt.svg' },
-  { id: 104, name: 'Graffiti Pop Tee', price: 27.99, imageUrl: '/default-tshirt.svg' },
-];
+import SizeChart from '../Components/SizeChart';
+import FeaturedProductsCarousel from '../pages/Home/components/FeaturedProductsCarousel';
 
 export default function DesignedTshirtDetail() {
   const { id } = useParams();
@@ -23,7 +17,8 @@ export default function DesignedTshirtDetail() {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState('');
-  const [relatedProducts, setRelatedProducts] = useState(mockRelatedProducts);
+  const [designedTshirts, setDesignedTshirts] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
 
   useEffect(() => {
     fetch(`/api/designed-tshirts/${id}`)
@@ -35,7 +30,12 @@ export default function DesignedTshirtDetail() {
           return;
         }
         setDesignedTshirt(data);
-        setMainImage(data.imageUrl || '/default-tshirt.svg');
+        // Use main image from images array if present
+        let mainImg = data.imageUrl || '/default-tshirt.svg';
+        if (data.images && data.images.length > 0) {
+          mainImg = data.images.find(img => img.isMain)?.imageUrl || data.images[0].imageUrl;
+        }
+        setMainImage(mainImg);
         setSelectedSize((data.sizes && data.sizes[0]) || '');
         setLoading(false);
       })
@@ -44,6 +44,15 @@ export default function DesignedTshirtDetail() {
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    fetch('/api/designed-tshirts')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        setDesignedTshirts(data || []);
+        setTrendingLoading(false);
+      });
+  }, []);
 
   const handleAddToCart = () => {
     // Add to cart logic here
@@ -74,42 +83,47 @@ export default function DesignedTshirtDetail() {
               />
             </div>
             <div className="grid grid-cols-4 gap-4">
-              {[
-                designedTshirt.imageUrl,
-                designedTshirt.design?.imageUrl,
-                designedTshirt.tshirt?.imageUrl
-              ].map((img, idx) => (
-                img && <img key={idx} src={img} alt={`thumbnail-${idx}`} className="w-full h-24 object-contain rounded-lg cursor-pointer border-2 hover:border-pink-500" onClick={() => setMainImage(img)} />
-              ))}
+              {/* Show all images from images array if present */}
+              {designedTshirt.images && designedTshirt.images.length > 0
+                ? designedTshirt.images.map((img, idx) => (
+                    <img key={idx} src={img.imageUrl} alt={`thumbnail-${idx}`} className="w-full h-24 object-contain rounded-lg cursor-pointer border-2 hover:border-pink-500" onClick={() => setMainImage(img.imageUrl)} />
+                  ))
+                : [
+                    designedTshirt.imageUrl,
+                    designedTshirt.design?.imageUrl,
+                    designedTshirt.tshirt?.imageUrl
+                  ].map((img, idx) => (
+                    img && <img key={idx} src={img} alt={`thumbnail-${idx}`} className="w-full h-24 object-contain rounded-lg cursor-pointer border-2 hover:border-pink-500" onClick={() => setMainImage(img)} />
+                  ))}
             </div>
           </div>
 
           {/* Product Info */}
           <div>
-            <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-2">{designedTshirt.name}</h1>
-            <p className="text-gray-500 mb-4">{designedTshirt.description}</p>
+            <h1 className="text-2xl lg:text-4xl font-extrabold text-gray-900 mb-2">{designedTshirt.name}</h1>
+            <p className="text-sm text-gray-500 mb-4">{designedTshirt.description}</p>
             <div className="flex items-center gap-2 mb-4">
               <div className="flex text-yellow-400"><FaStar /><FaStar /><FaStar /><FaStar /><FaStar /></div>
-              <span className="text-gray-600">(125 Reviews)</span>
+              <span className="text-sm text-gray-600">(125 Reviews)</span>
             </div>
 
             <div className="flex items-baseline gap-3 mb-6">
-              <span className="text-3xl font-bold text-pink-600">
+              <span className="text-2xl font-extrabold text-pink-600">
                 {typeof designedTshirt.price === 'number' && designedTshirt.price !== null
                   ? `₹${designedTshirt.price.toFixed(2)}`
                   : 'N/A'}
               </span>
-              <span className="text-gray-400 line-through">
+              <span className="text-base text-gray-400 line-through">
                 {typeof designedTshirt.price === 'number' && designedTshirt.price !== null
                   ? `₹${(designedTshirt.price * 1.4).toFixed(2)}`
                   : ''}
               </span>
-              <span className="text-green-500 font-bold">(30% OFF)</span>
+              <span className="text-sm text-green-500 font-bold">(30% OFF)</span>
             </div>
 
             {/* Size Selector */}
             <div className="mb-6">
-              <h3 className="font-semibold text-lg mb-2">Select Size</h3>
+              <h3 className="font-bold text-lg mb-2 text-gray-800">Select Size</h3>
               <div className="flex flex-wrap gap-3">
                 {availableSizes.map(size => (
                   <button 
@@ -153,12 +167,32 @@ export default function DesignedTshirtDetail() {
           </div>
         </div>
 
-        {/* You Might Also Like */}
+        {/* SizeChart: Desktop only, before You Might Also Like */}
+        <div className="hidden md:block mt-8">
+          <SizeChart />
+        </div>
+        {/* SizeChart: Mobile only, before You Might Also Like */}
+        <div className="block md:hidden mt-4 mb-8 px-4">
+          <SizeChart />
+        </div>
+        {/* You Might Also Like (Trending Now) */}
         <div className="mt-20">
-          <h2 className="text-2xl font-bold text-center mb-8">You Might Also Like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {relatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Trending Now</h2>
+            <Link to="/designed-tshirts" className="text-pink-600 hover:text-purple-600 font-semibold text-lg flex items-center gap-2 hover:underline transition-colors duration-200">
+              See All
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
           </div>
+          {trendingLoading ? (
+            <div className="text-gray-500 mt-8 text-center py-12">Loading latest trends...</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+              {designedTshirts.slice(0, 4).map((designedTshirt) => (
+                <ProductCard key={designedTshirt.id} product={designedTshirt} type="designed-tshirt" />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -171,6 +205,6 @@ export default function DesignedTshirtDetail() {
           <FaShoppingCart /> Add to Cart
         </button>
       </div>
-    </div>
+    </div> 
   );
 } 

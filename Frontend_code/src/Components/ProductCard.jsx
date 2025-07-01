@@ -14,9 +14,13 @@ export default function ProductCard({ product, type = 'designed-tshirt' }) {
     <div className="group relative bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 animate-fade-in">
       <Link to={productLink} className="block relative">
         <img
-          src={product.imageUrl || '/default-tshirt.svg'}
+          src={
+            (product.images && product.images.length > 0 &&
+              (product.images.find(img => img.isMain) ? product.images.find(img => img.isMain).imageUrl : product.images[0].imageUrl)
+            ) || product.imageUrl || '/default-tshirt.svg'
+          }
           alt={product.name}
-          className="w-full h-64 object-contain rounded-lg transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-48 object-contain rounded-t transition-transform duration-300 group-hover:scale-105"
           onError={e => { e.currentTarget.src = '/default-tshirt.svg'; }}
         />
         {badge && (
@@ -27,14 +31,14 @@ export default function ProductCard({ product, type = 'designed-tshirt' }) {
       </Link>
       
       <div className="p-4">
-        <h3 className="font-bold text-gray-500 text-sm mb-1">{product.brand?.name || 'TrendTee'}</h3>
-        <p className="text-gray-800 truncate font-semibold">{product.name}</p>
+        <h3 className="text-xs font-medium text-gray-500 mb-1">{product.brand?.name || 'TrendTee'}</h3>
+        <p className="text-base font-semibold text-gray-900 mb-1">{product.name}</p>
         <div className="flex items-baseline gap-2 mt-1">
-          <span className="font-extrabold text-lg text-pink-600">₹{product.price?.toFixed(2)}</span>
+          <span className="font-extrabold text-xl text-pink-600">₹{product.price?.toFixed(2)}</span>
           {badge === 'Sale' && (
             <>
-              <span className="text-gray-400 line-through text-sm">₹{(product.price * 1.4).toFixed(2)}</span>
-              <span className="text-green-500 font-bold text-sm">(30% OFF)</span>
+              <span className="text-xs text-gray-400 line-through">₹{(product.price * 1.4).toFixed(2)}</span>
+              <span className="text-xs text-green-500 font-bold">(30% OFF)</span>
             </>
           )}
         </div>

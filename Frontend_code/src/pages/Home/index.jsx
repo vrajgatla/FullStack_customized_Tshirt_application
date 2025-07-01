@@ -35,7 +35,7 @@ export default function Home() {
       {/* Trending Designs Section */}
       <div className="w-[90vw] mx-auto my-10">
         <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-800 tracking-tight">Trending Now</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Trending Now</h2>
           <Link to="/designed-tshirts" className="text-pink-600 hover:text-purple-600 font-semibold text-lg flex items-center gap-2 hover:underline transition-colors duration-200">
             See All
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -45,7 +45,7 @@ export default function Home() {
           <div className="text-gray-500 mt-8 text-center py-12">Loading latest trends...</div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            {designedTshirts.slice(0, 8).map((designedTshirt) => (
+            {designedTshirts.slice(0, 4).map((designedTshirt) => (
               <ProductCard key={designedTshirt.id} product={designedTshirt} type="designed-tshirt" />
             ))}
           </div>
@@ -58,13 +58,7 @@ export default function Home() {
         <Testimonials />
       </div>
       {/* Call to Action */}
-      <div className="w-[90vw] mx-auto my-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl shadow-2xl p-12 text-center text-white">
-        <h2 className="text-4xl font-bold mb-6">Unleash Your Creativity</h2>
-        <p className="text-xl mb-8 opacity-90">Design a t-shirt that's uniquely you. It's simple, fast, and fun!</p>
-        <Link to="/custom-design" className="inline-block bg-white text-purple-600 px-8 py-4 rounded-xl font-bold shadow-xl hover:scale-105 hover:shadow-2xl transition-all duration-300 text-lg">
-          Start Designing Now
-        </Link>
-      </div>
+      
     </div>
   );
 }

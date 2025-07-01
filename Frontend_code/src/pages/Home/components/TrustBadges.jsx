@@ -14,7 +14,7 @@ export default function TrustBadges() {
       {badges.map((b, idx) => (
         <div key={idx} className="flex flex-col items-center bg-white rounded-xl shadow p-4 min-w-[120px] hover:scale-105 transition-transform duration-300">
           {b.icon}
-          <span className="mt-2 font-semibold text-gray-700 text-sm text-center">{b.label}</span>
+          <span className="mt-2 font-semibold text-gray-700 text-base text-center">{b.label}</span>
         </div>
       ))}
     </div>
