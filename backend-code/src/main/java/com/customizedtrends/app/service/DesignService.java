@@ -1,7 +1,11 @@
 package com.customizedtrends.app.service;
 
 import com.customizedtrends.app.model.Design;
+import com.customizedtrends.app.model.DesignedTshirt;
+import com.customizedtrends.app.model.OrderItem;
 import com.customizedtrends.app.repository.DesignRepository;
+import com.customizedtrends.app.repository.DesignedTshirtRepository;
+import com.customizedtrends.app.repository.OrderItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +18,12 @@ import java.util.Optional;
 public class DesignService {
     @Autowired
     private DesignRepository designRepository;
+    
+    @Autowired
+    private DesignedTshirtRepository designedTshirtRepository;
+    
+    @Autowired
+    private OrderItemRepository orderItemRepository;
 
     public List<Design> getAllDesigns() {
         return designRepository.findAll();
@@ -49,10 +59,75 @@ public class DesignService {
     }
 
     public void deleteDesign(Long id) {
-        designRepository.deleteById(id);
+        // Check if design exists
+        Design design = designRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Design not found with id: " + id));
+        
+        // Check for references in DesignedTshirt (both active and inactive)
+        List<DesignedTshirt> designedTshirts = designedTshirtRepository.findByDesignIdAndIsActiveTrue(id);
+        if (!designedTshirts.isEmpty()) {
+            throw new RuntimeException("Cannot delete design. It is referenced by " + designedTshirts.size() + " active designed t-shirt(s). Please remove these references first.");
+        }
+        
+        // Also check for any DesignedTshirt references regardless of active status
+        List<DesignedTshirt> allDesignedTshirts = designedTshirtRepository.findByDesignId(id);
+        if (!allDesignedTshirts.isEmpty()) {
+            throw new RuntimeException("Cannot delete design. It is referenced by " + allDesignedTshirts.size() + " designed t-shirt(s) (including inactive). Please remove these references first.");
+        }
+        
+        // Check for references in OrderItem
+        List<OrderItem> orderItems = orderItemRepository.findByDesignId(id);
+        if (!orderItems.isEmpty()) {
+            throw new RuntimeException("Cannot delete design. It is referenced by " + orderItems.size() + " order item(s). Please remove these references first.");
+        }
+        
+        // If no references found, delete the design
+        try {
+            designRepository.deleteById(id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete design: " + e.getMessage() + ". This might be due to database constraints.");
+        }
     }
 
     public Page<Design> getAllDesigns(Pageable pageable) {
         return designRepository.findAll(pageable);
+    }
+    
+    public boolean canDeleteDesign(Long id) {
+        // Check if design exists
+        if (!designRepository.existsById(id)) {
+            return false;
+        }
+        
+        // Check for any references
+        List<DesignedTshirt> designedTshirts = designedTshirtRepository.findByDesignId(id);
+        List<OrderItem> orderItems = orderItemRepository.findByDesignId(id);
+        
+        return designedTshirts.isEmpty() && orderItems.isEmpty();
+    }
+    
+    public void forceDeleteDesign(Long id) {
+        // Check if design exists
+        Design design = designRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Design not found with id: " + id));
+        
+        // Remove all DesignedTshirt references
+        List<DesignedTshirt> designedTshirts = designedTshirtRepository.findByDesignId(id);
+        if (!designedTshirts.isEmpty()) {
+            designedTshirtRepository.deleteAll(designedTshirts);
+        }
+        
+        // Remove all OrderItem references
+        List<OrderItem> orderItems = orderItemRepository.findByDesignId(id);
+        if (!orderItems.isEmpty()) {
+            orderItemRepository.deleteAll(orderItems);
+        }
+        
+        // Now delete the design
+        try {
+            designRepository.deleteById(id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete design after removing references: " + e.getMessage());
+        }
     }
 } 

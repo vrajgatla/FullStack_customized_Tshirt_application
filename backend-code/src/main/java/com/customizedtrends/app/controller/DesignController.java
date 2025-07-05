@@ -1,8 +1,12 @@
 package com.customizedtrends.app.controller;
 
 import com.customizedtrends.app.model.Design;
+import com.customizedtrends.app.model.DesignedTshirt;
+import com.customizedtrends.app.model.OrderItem;
 import com.customizedtrends.app.service.DesignService;
 import com.customizedtrends.app.service.CloudinaryService;
+import com.customizedtrends.app.repository.DesignedTshirtRepository;
+import com.customizedtrends.app.repository.OrderItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +26,12 @@ public class DesignController {
 
     @Autowired
     private CloudinaryService cloudinaryService;
+    
+    @Autowired
+    private DesignedTshirtRepository designedTshirtRepository;
+    
+    @Autowired
+    private OrderItemRepository orderItemRepository;
 
     @GetMapping
     public Page<Design> getAllDesigns(Pageable pageable) {
@@ -46,9 +56,27 @@ public class DesignController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteDesign(@PathVariable Long id) {
+    public ResponseEntity<?> deleteDesign(@PathVariable Long id) {
+        try {
         designService.deleteDesign(id);
         return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Failed to delete design: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}/force-delete")
+    public ResponseEntity<?> forceDeleteDesign(@PathVariable Long id) {
+        try {
+            designService.forceDeleteDesign(id);
+            return ResponseEntity.ok().body(java.util.Map.of("message", "Design and all its references have been deleted successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Failed to force delete design: " + e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/update-with-image")
@@ -146,5 +174,33 @@ public class DesignController {
                 .filter(theme -> theme != null && !theme.isEmpty())
                 .distinct()
                 .toList();
+    }
+
+    @GetMapping("/{id}/can-delete")
+    public ResponseEntity<?> canDeleteDesign(@PathVariable Long id) {
+        try {
+            boolean canDelete = designService.canDeleteDesign(id);
+            
+            if (!canDelete) {
+                // Get the specific references for better error message
+                List<DesignedTshirt> designedTshirts = designedTshirtRepository.findByDesignId(id);
+                List<OrderItem> orderItems = orderItemRepository.findByDesignId(id);
+                
+                return ResponseEntity.ok(java.util.Map.of(
+                    "canDelete", false,
+                    "designedTshirtsCount", designedTshirts.size(),
+                    "orderItemsCount", orderItems.size(),
+                    "message", "Design cannot be deleted. It is referenced by " + 
+                        (designedTshirts.size() + orderItems.size()) + " item(s)."
+                ));
+            }
+            
+            return ResponseEntity.ok(java.util.Map.of(
+                "canDelete", true,
+                "message", "Design can be deleted safely"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 } 

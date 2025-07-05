@@ -25,9 +25,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.ArrayList;
+
+import jakarta.annotation.PostConstruct;
 
 @RestController
 @RequestMapping("/api/designed-tshirts")
@@ -54,6 +56,12 @@ public class DesignedTshirtController {
 
     @Autowired
     private CloudinaryService cloudinaryService;
+
+    @PostConstruct
+    public void configureObjectMapper() {
+        // Configure ObjectMapper to handle null values properly
+        objectMapper.setSerializationInclusion(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL);
+    }
 
     // Create a new designed t-shirt (Admin only)
     @PostMapping
@@ -276,8 +284,18 @@ public class DesignedTshirtController {
             @RequestParam("designedTshirt") String designedTshirtJson,
             @RequestParam(value = "image", required = false) MultipartFile imageFile) {
         try {
+            // Log the incoming data for debugging
+            System.out.println("[UPDATE] Received update request for designed t-shirt ID: " + id);
+            System.out.println("[UPDATE] JSON data: " + designedTshirtJson);
+            
             // Parse the JSON string to DTO
             DesignedTshirtSaveDTO dto = objectMapper.readValue(designedTshirtJson, DesignedTshirtSaveDTO.class);
+            System.out.println("[UPDATE] Parsed DTO - Name: " + dto.getName() + ", Featured: " + dto.getFeatured());
+            
+            // Validate required fields
+            if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name is required");
+            }
             
             // Convert DTO to entity
             DesignedTshirt updatedDesignedTshirt = new DesignedTshirt();
@@ -286,13 +304,21 @@ public class DesignedTshirtController {
             // Set brand
             if (dto.getBrandId() != null) {
                 Optional<Brand> brand = brandRepository.findById(dto.getBrandId());
-                brand.ifPresent(updatedDesignedTshirt::setBrand);
+                if (brand.isPresent()) {
+                    updatedDesignedTshirt.setBrand(brand.get());
+                } else {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Brand not found with ID: " + dto.getBrandId());
+                }
             }
             
             // Set color
             if (dto.getColorId() != null) {
                 Optional<Color> color = colorRepository.findById(dto.getColorId());
-                color.ifPresent(updatedDesignedTshirt::setColor);
+                if (color.isPresent()) {
+                    updatedDesignedTshirt.setColor(color.get());
+                } else {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Color not found with ID: " + dto.getColorId());
+                }
             }
             
             // Set design (if using gallery design)
@@ -301,8 +327,8 @@ public class DesignedTshirtController {
                 design.ifPresent(updatedDesignedTshirt::setDesign);
             }
             
-            // Set other properties
-            updatedDesignedTshirt.setSizes(dto.getSizes());
+            // Set other properties with null checks
+            updatedDesignedTshirt.setSizes(dto.getSizes() != null ? dto.getSizes() : new ArrayList<>());
             updatedDesignedTshirt.setGender(dto.getGender());
             updatedDesignedTshirt.setMaterial(dto.getMaterial());
             updatedDesignedTshirt.setFit(dto.getFit());
@@ -310,7 +336,7 @@ public class DesignedTshirtController {
             updatedDesignedTshirt.setNeckType(dto.getNeckType());
             updatedDesignedTshirt.setPrice(dto.getPrice());
             updatedDesignedTshirt.setStock(dto.getStock());
-            updatedDesignedTshirt.setFeatured(dto.getFeatured());
+            updatedDesignedTshirt.setFeatured(dto.getFeatured() != null ? dto.getFeatured() : false);
             updatedDesignedTshirt.setTags(dto.getTags());
             updatedDesignedTshirt.setDescription(dto.getDescription());
             
@@ -332,9 +358,14 @@ public class DesignedTshirtController {
                 optimizedUrl = cloudinaryService.generateOptimizedUrl(imageUrl);
             }
             
+            System.out.println("[UPDATE] Calling service to update designed t-shirt");
             DesignedTshirt savedDesignedTshirt = designedTshirtService.updateDesignedTshirt(id, updatedDesignedTshirt, imageUrl, thumbnailUrl, optimizedUrl);
+            System.out.println("[UPDATE] Successfully updated designed t-shirt: " + savedDesignedTshirt.getId());
+            
             return ResponseEntity.ok(savedDesignedTshirt);
         } catch (Exception e) {
+            System.err.println("[UPDATE] Error updating designed t-shirt: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error updating designed t-shirt: " + e.getMessage());
         }
     }

@@ -42,8 +42,11 @@ public interface DesignedTshirtRepository extends JpaRepository<DesignedTshirt, 
     // Find by created by (admin)
     List<DesignedTshirt> findByCreatedByAndIsActiveTrue(String createdBy);
     
-    // Find by design (if using gallery design)
+    // Find by design (if using gallery design) - active only
     List<DesignedTshirt> findByDesignIdAndIsActiveTrue(Long designId);
+    
+    // Find by design (if using gallery design) - all statuses
+    List<DesignedTshirt> findByDesignId(Long designId);
     
     // Count active designed t-shirts
     long countByIsActiveTrue();
