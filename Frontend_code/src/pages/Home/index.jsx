@@ -1,64 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaPalette, FaTruck, FaShieldAlt } from 'react-icons/fa';
-import Testimonials from './components/Testimonials';
-import TrustBadges from './components/TrustBadges';
-import FeaturedProductsCarousel from './components/FeaturedProductsCarousel';
-import ShopByCategory from './components/ShopByCategory';
+import { FaPalette, FaTruck, FaShieldAlt, FaArrowRight } from 'react-icons/fa';
+import FeaturedDesignedTshirts from './components/FeaturedDesignedTshirts';
 import HeroBanner from './components/HeroBanner';
-import ProductCard from '../../Components/ProductCard';
+import LatestDesignedTshirts from './components/LatestDesignedTshirts';
+import Reviews from './components/Reviews';
 
 export default function Home() {
-  const [designedTshirts, setDesignedTshirts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/designed-tshirts')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        setDesignedTshirts(data || []);
-        setLoading(false);
-      });
-  }, []);
-
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-8 bg-gradient-to-br from-blue-50 via-purple-50 to-white animate-fade-in">
-      <div className="w-[90vw] mx-auto my-10">
-        <FeaturedProductsCarousel />
+    <div className="w-full max-w-7xl mx-auto px-4 bg-white">
+      {/* 1. Featured Designed T-Shirts Carousel */}
+      <div className="my-6">
+        <FeaturedDesignedTshirts />
       </div>
-      <div className="w-[90vw] mx-auto my-10">
+
+      {/* 2. Create Your T-Shirt Section */}
+      <div className="my-6">
         <HeroBanner />
       </div>
-      <div className="w-[90vw] mx-auto my-10">
-        <ShopByCategory />
+
+      {/* 3. Latest Designed T-Shirts Section */}
+      <div className="my-6">
+        <LatestDesignedTshirts />
       </div>
-      {/* Trending Designs Section */}
-      <div className="w-[90vw] mx-auto my-10">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Trending Now</h2>
-          <Link to="/designed-tshirts" className="text-pink-600 hover:text-purple-600 font-semibold text-lg flex items-center gap-2 hover:underline transition-colors duration-200">
-            See All
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </Link>
-        </div>
-        {loading ? (
-          <div className="text-gray-500 mt-8 text-center py-12">Loading latest trends...</div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            {designedTshirts.slice(0, 4).map((designedTshirt) => (
-              <ProductCard key={designedTshirt.id} product={designedTshirt} type="designed-tshirt" />
-            ))}
+
+      {/* 4. Ready to Custom Design Section */}
+      <div className="my-6">
+        <div className="bg-black text-white rounded-2xl p-8 text-center">
+          <h2 className="text-3xl font-bold mb-4">Ready to Create Your Custom T-Shirt?</h2>
+          <p className="text-lg mb-6 opacity-90">Design your own unique t-shirt or browse our latest collections</p>
+          <div className="flex gap-4 justify-center">
+            <Link 
+              to="/custom-design" 
+              className="bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors duration-200"
+            >
+              Start Designing
+            </Link>
+            <Link 
+              to="/designed-tshirts" 
+              className="border-2 border-white text-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-black transition-colors duration-200"
+            >
+              Browse Collections
+            </Link>
           </div>
-        )}
+        </div>
       </div>
-      <div className="w-[90vw] mx-auto my-10">
-        <TrustBadges />
+
+      {/* 5. Small Reviews Section */}
+      <div className="my-6">
+        <Reviews />
       </div>
-      <div className="w-[90vw] mx-auto my-10">
-        <Testimonials />
-      </div>
-      {/* Call to Action */}
-      
     </div>
   );
 }

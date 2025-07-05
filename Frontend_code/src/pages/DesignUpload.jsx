@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { compressImage, getImageInfo, formatFileSize, calculateCompressionRatio } from '../utils/imageCompression';
+import { compressImagePreservingTransparency, getImageInfo, formatFileSize, calculateCompressionRatio } from '../utils/imageCompression';
 
 function SelectWithCustom({ label, name, options, form, setForm }) {
   const isCustom = !options.includes(form[name]);
@@ -72,7 +72,7 @@ export default function DesignUpload() {
         setImageInfo(originalInfo);
         
         // Compress the image
-        const compressedFile = await compressImage(file);
+        const compressedFile = await compressImagePreservingTransparency(file);
         
         // Get compressed image info
         const compressedInfo = await getImageInfo(compressedFile);

@@ -35,7 +35,7 @@ function App() {
           <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
             <Toaster position="top-center" reverseOrder={false} />
             <NavBar />
-            <main className="flex-grow">
+            <main className="flex-grow pt-0">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<Products />} />

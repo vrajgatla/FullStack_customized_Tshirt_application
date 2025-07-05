@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../utils/api';
-import { FaEdit, FaTrash, FaEye, FaDownload, FaPlus, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaDownload, FaPlus, FaChevronLeft, FaChevronRight, FaStar } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
 const ManageDesignedTshirts = () => {
@@ -65,6 +65,28 @@ const ManageDesignedTshirts = () => {
         setError('Failed to delete designed t-shirt: ' + (err.message || 'Unknown error'));
         console.error('Error deleting designed t-shirt:', err);
       }
+    }
+  };
+
+  const handleToggleFeatured = async (tshirt) => {
+    try {
+      const updateData = {
+        name: tshirt.name,
+        price: tshirt.price,
+        brandId: tshirt.brand?.id,
+        colorId: tshirt.color?.id,
+        stock: tshirt.stock,
+        sizes: tshirt.sizes,
+        designId: tshirt.design?.id,
+        featured: !tshirt.featured
+      };
+
+      await apiService.updateDesignedTshirt(tshirt.id, updateData, null, token);
+      // Reload the current page to refresh the data
+      await loadDesignedTshirts();
+    } catch (err) {
+      setError('Failed to update featured status: ' + (err.message || 'Unknown error'));
+      console.error('Error updating featured status:', err);
     }
   };
 
@@ -295,6 +317,9 @@ const ManageDesignedTshirts = () => {
                         Stock
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Featured
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Created
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -344,6 +369,20 @@ const ManageDesignedTshirts = () => {
                           }`}>
                             {tshirt.stock || 0}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleToggleFeatured(tshirt)}
+                            className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full transition-colors duration-200 ${
+                              tshirt.featured 
+                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                            title={tshirt.featured ? 'Click to unfeature' : 'Click to feature'}
+                          >
+                            <FaStar className={`w-3 h-3 mr-1 ${tshirt.featured ? 'text-yellow-500' : 'text-gray-400'}`} />
+                            {tshirt.featured ? 'Featured' : 'Not Featured'}
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(tshirt.createdAt)}

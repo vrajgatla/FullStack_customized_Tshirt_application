@@ -110,13 +110,16 @@ export default function Products() {
   const [selectedColors, setSelectedColors] = useState([]);
   const [selectedGenders, setSelectedGenders] = useState([]);
   const itemsPerPage = 12;
+
   useEffect(() => {
     fetchBrands();
     fetchColors();
   }, []);
+
   useEffect(() => {
-      fetchTshirts();
+    fetchTshirts();
   }, [tshirtsPage, tshirtsSearch, selectedBrands, selectedColors, selectedGenders]);
+
   const fetchBrands = async () => {
     try {
       const data = await fetch('/api/brands').then(res => res.json());
@@ -125,6 +128,7 @@ export default function Products() {
       setBrands([]);
     }
   };
+
   const fetchColors = async () => {
     try {
       const data = await fetch('/api/colors').then(res => res.json());
@@ -133,6 +137,7 @@ export default function Products() {
       setColors([]);
     }
   };
+
   const fetchTshirts = async () => {
     try {
       setLoading(true);
@@ -160,10 +165,97 @@ export default function Products() {
       setLoading(false);
     }
   };
+
   const handleTshirtsSearch = (e) => {
     e.preventDefault();
     setTshirtsPage(1);
   };
+
+  const handlePageChange = (newPage) => {
+    setTshirtsPage(newPage);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const renderPagination = () => {
+    if (tshirtsTotalPages <= 1) return null;
+
+    const startPage = Math.max(1, tshirtsPage - 2);
+    const endPage = Math.min(tshirtsTotalPages, tshirtsPage + 2);
+    const pages = [];
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6 rounded-lg shadow">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => handlePageChange(Math.max(1, tshirtsPage - 1))}
+            disabled={tshirtsPage === 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => handlePageChange(Math.min(tshirtsTotalPages, tshirtsPage + 1))}
+            disabled={tshirtsPage === tshirtsTotalPages}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+        
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{(tshirtsPage - 1) * itemsPerPage + 1}</span> to{' '}
+              <span className="font-medium">
+                {Math.min(tshirtsPage * itemsPerPage, tshirts.length + (tshirtsPage - 1) * itemsPerPage)}
+              </span>{' '}
+              of <span className="font-medium">{tshirtsTotalPages * itemsPerPage}</span> results
+            </p>
+          </div>
+          
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                onClick={() => handlePageChange(Math.max(1, tshirtsPage - 1))}
+                disabled={tshirtsPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              {pages.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    page === tshirtsPage
+                      ? 'z-10 bg-pink-50 border-pink-500 text-pink-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(Math.min(tshirtsTotalPages, tshirtsPage + 1))}
+                disabled={tshirtsPage === tshirtsTotalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const [showFilters, setShowFilters] = useState(false);
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
@@ -215,6 +307,7 @@ export default function Products() {
           <div className="block md:hidden mt-4 mb-8 px-2">
             <SizeChart />
           </div>
+          {renderPagination()}
         </main>
         </div>
     </div>

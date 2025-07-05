@@ -25,7 +25,18 @@ class ApiService {
         throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
       
+      // For DELETE requests or when response is empty, return success object
+      if (options.method === 'DELETE' || response.status === 204) {
+        return { success: true };
+      }
+      
+      // Try to parse JSON, but handle empty responses gracefully
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
       return await response.json();
+      } else {
+        return { success: true };
+      }
     } catch (error) {
       console.error(`API Error (${endpoint}):`, error);
       throw error;
@@ -217,10 +228,26 @@ class ApiService {
   }
 
   async deleteDesignedTshirt(id, token) {
-    return this.request(`/designed-tshirts/${id}`, {
+    const url = `${this.baseURL}/designed-tshirts/${id}`;
+    const config = {
       method: 'DELETE',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-    });
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+      }
+      
+      // DELETE requests typically return 200 with no body, so we don't try to parse JSON
+      return { success: true };
+    } catch (error) {
+      console.error('Delete Designed T-shirt Error:', error);
+      throw error;
+    }
   }
 
   async getDesignedTshirtsByAdmin(adminUsername, token) {

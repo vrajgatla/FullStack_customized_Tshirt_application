@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { compressImagePreservingTransparency } from '../utils/imageCompression';
 
 function SizeMultiSelect({ label, name, options, form, setForm }) {
   // Default sizes
@@ -143,12 +144,25 @@ export default function TshirtUpload() {
     fetch('/api/tshirts/neckTypes').then(res => res.json()).then(data => setNeckTypes(data));
   }, []);
 
-  const handleFiles = (e) => {
+  const handleFiles = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setNewImages(prev => [...prev, ...files]);
-      setImagePreviews(prev => [...prev, ...files.map(file => URL.createObjectURL(file))]);
-      if (mainImageIndex === null && files.length > 0) setMainImageIndex(0);
+      
+      // Compress images while preserving transparency
+      const compressedFiles = [];
+      for (const file of files) {
+        try {
+          const compressedFile = await compressImagePreservingTransparency(file);
+          compressedFiles.push(compressedFile);
+        } catch (error) {
+          console.error('Failed to compress image:', error);
+          compressedFiles.push(file); // Use original if compression fails
+        }
+      }
+      
+      setNewImages(prev => [...prev, ...compressedFiles]);
+      setImagePreviews(prev => [...prev, ...compressedFiles.map(file => URL.createObjectURL(file))]);
+      if (mainImageIndex === null && compressedFiles.length > 0) setMainImageIndex(0);
     }
   };
   const handleRemoveImage = (idx) => {

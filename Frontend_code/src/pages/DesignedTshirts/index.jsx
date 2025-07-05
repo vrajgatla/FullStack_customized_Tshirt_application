@@ -22,7 +22,7 @@ function FilterSidebar({
   colors
 }) {
   return (
-    <aside className="w-full md:w-64 lg:w-72 flex-shrink-0 bg-white rounded-xl shadow-lg p-6">
+    <aside className="w-64 bg-white rounded-xl shadow-lg p-6">
       <h3 className="font-bold text-xl mb-4 text-gray-800">Filters</h3>
       {/* Search */}
       <div className="mb-6">
@@ -76,7 +76,7 @@ function FilterSidebar({
 function ProductGrid({ products, loading }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-3 gap-6">
         {[...Array(9)].map((_, i) => (
           <div key={i} className="bg-white rounded-xl shadow p-4 animate-pulse">
             <div className="bg-gray-200 h-48 rounded-lg mb-4"></div>
@@ -99,7 +99,7 @@ function ProductGrid({ products, loading }) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <div className="grid grid-cols-3 gap-6">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} type="designed-tshirt" />
       ))}
@@ -110,7 +110,6 @@ function ProductGrid({ products, loading }) {
 export default function DesignedTshirts() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedGender, setSelectedGender] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -118,6 +117,10 @@ export default function DesignedTshirts() {
   const [brands, setBrands] = useState([]);
   const [colors, setColors] = useState([]);
   const [searchParams] = useSearchParams();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const itemsPerPage = 12;
 
   useEffect(() => {
     // On mount, set gender from URL if present
@@ -141,7 +144,7 @@ export default function DesignedTshirts() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      let url = '/api/designed-tshirts/page?page=0&size=12';
+      let url = `/api/designed-tshirts/page?page=${currentPage - 1}&size=${itemsPerPage}`;
       if (selectedGender) url += `&gender=${encodeURIComponent(selectedGender)}`;
       if (selectedBrand) url += `&brand=${encodeURIComponent(selectedBrand)}`;
       if (selectedColor) url += `&color=${encodeURIComponent(selectedColor)}`;
@@ -153,6 +156,8 @@ export default function DesignedTshirts() {
       const data = await response.json();
       const productsData = data.content || [];
       setProducts(productsData);
+      setTotalPages(data.totalPages || 1);
+      setTotalElements(data.totalElements || 0);
     } catch (err) {
       console.error('Error fetching designed t-shirts:', err);
       toast.error('Could not load designed t-shirts');
@@ -164,78 +169,125 @@ export default function DesignedTshirts() {
 
   // Fetch products whenever a filter changes
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
     fetchProducts();
     // eslint-disable-next-line
   }, [selectedGender, selectedBrand, selectedColor, searchQuery]);
 
+  // Fetch products when page changes
+  useEffect(() => {
+    fetchProducts();
+    // eslint-disable-next-line
+  }, [currentPage]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    const pages = [];
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6 rounded-lg shadow">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+        
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, totalElements)}
+              </span>{' '}
+              of <span className="font-medium">{totalElements}</span> results
+            </p>
+          </div>
+          
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              {pages.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    page === currentPage
+                      ? 'z-10 bg-purple-50 border-purple-500 text-purple-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
       <div className="text-center mb-10">
-        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Designed T-Shirts</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-6">Designed T-Shirts</h1>
         <p className="text-lg text-gray-600 mt-2">Explore unique T-shirts created by our talented community.</p>
-        </div>
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Mobile Filter Button */}
-        <div className="md:hidden flex justify-between items-center">
-              <button
-            onClick={() => setShowFilters(true)}
-            className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow font-semibold"
-          >
-            <FaFilter className="text-pink-500" /> Filters
-              </button>
-        </div>
-        {/* Mobile Filter Overlay */}
-        {showFilters && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={() => setShowFilters(false)}></div>
-        )}
-        <div className={`fixed top-0 left-0 h-full w-4/5 max-w-sm bg-white z-50 transform ${showFilters ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 md:hidden overflow-y-auto`}>
-          <div className="p-4">
-            <button onClick={() => setShowFilters(false)} className="absolute top-4 right-4 text-2xl"><FaTimes /></button>
-            <FilterSidebar
-              selectedGender={selectedGender}
-              onGenderChange={setSelectedGender}
-              selectedBrand={selectedBrand}
-              onBrandChange={setSelectedBrand}
-              selectedColor={selectedColor}
-              onColorChange={setSelectedColor}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              brands={brands}
-              colors={colors}
-            />
-          </div>
-        </div>
-        {/* Desktop Filters */}
-        <div className="hidden md:block">
-          <FilterSidebar
-            selectedGender={selectedGender}
-            onGenderChange={setSelectedGender}
-            selectedBrand={selectedBrand}
-            onBrandChange={setSelectedBrand}
-            selectedColor={selectedColor}
-            onColorChange={setSelectedColor}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            brands={brands}
-            colors={colors}
-                    />
-                  </div>
-        {/* Products Grid */}
-        <main className="flex-1">
-          <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow">
-            <span className="font-semibold text-gray-700">
-              {loading ? 'Loading...' : `Showing ${products.length} products`}
-            </span>
-            <select className="border border-gray-300 rounded-lg p-2 font-semibold focus:ring-2 focus:ring-pink-400">
-              <option>Sort by: Popularity</option>
-              <option>Sort by: Price low to high</option>
-              <option>Sort by: Price high to low</option>
-              <option>Sort by: Newest arrivals</option>
-            </select>
-          </div>
+      </div>
+      <div className="flex gap-8">
+        <FilterSidebar
+          selectedGender={selectedGender}
+          onGenderChange={setSelectedGender}
+          selectedBrand={selectedBrand}
+          onBrandChange={setSelectedBrand}
+          selectedColor={selectedColor}
+          onColorChange={setSelectedColor}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          brands={brands}
+          colors={colors}
+        />
+        <div className="flex-1">
           <ProductGrid products={products} loading={loading} />
-          {/* Pagination would go here */}
-        </main>
+          {renderPagination()}
+        </div>
       </div>
     </div>
   );

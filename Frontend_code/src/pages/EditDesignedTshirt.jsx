@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../utils/api';
 import { FaArrowLeft, FaSave, FaTrash } from 'react-icons/fa';
+import { compressImagePreservingTransparency } from '../utils/imageCompression';
 
 export default function EditDesignedTshirt() {
   const { id } = useParams();
@@ -132,30 +133,28 @@ export default function EditDesignedTshirt() {
 
       // Prepare the data for update
       const updateData = {
-        ...form,
-        sizes: Array.isArray(form.sizes) ? form.sizes : form.sizes.split(',').map(s => s.trim()).filter(s => s)
+        name: form.name,
+        price: form.price,
+        brandId: form.brandId,
+        colorId: form.colorId,
+        stock: form.stock,
+        sizes: Array.isArray(form.sizes) ? form.sizes : form.sizes.split(',').map(s => s.trim()).filter(s => s),
+        designId: form.designId,
+        featured: form.featured
       };
 
-      // In handleSubmit, append new images, removedImages, and mainImageId to FormData
-      const formData = new FormData();
-      formData.append('designedTshirt', JSON.stringify(updateData));
-      if (newImages.length > 0) {
-        newImages.forEach(img => formData.append('images', img));
-      }
-      if (removedImages.length > 0) {
-        formData.append('removedImages', JSON.stringify(removedImages));
-      }
-      if (mainImageId) {
-        formData.append('mainImageId', mainImageId);
-      }
+      // Debug: Log the data being sent
+      console.log('[UPDATE] Form data being sent:', updateData);
+      console.log('[UPDATE] Featured value:', updateData.featured);
 
-      await apiService.updateDesignedTshirt(id, formData, null, token);
+      await apiService.updateDesignedTshirt(id, updateData, null, token);
       
       setSuccess(true);
       setTimeout(() => {
         navigate('/manage-designed-tshirts');
       }, 2000);
     } catch (err) {
+      console.error('[UPDATE] Error details:', err);
       setError('Failed to update designed t-shirt: ' + err.message);
     } finally {
       setSaving(false);
@@ -590,7 +589,25 @@ export default function EditDesignedTshirt() {
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={e => setNewImages([...newImages, ...Array.from(e.target.files)])}
+                onChange={async (e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    const files = Array.from(e.target.files);
+                    
+                    // Compress images while preserving transparency
+                    const compressedFiles = [];
+                    for (const file of files) {
+                      try {
+                        const compressedFile = await compressImagePreservingTransparency(file);
+                        compressedFiles.push(compressedFile);
+                      } catch (error) {
+                        console.error('Failed to compress image:', error);
+                        compressedFiles.push(file); // Use original if compression fails
+                      }
+                    }
+                    
+                    setNewImages(prev => [...prev, ...compressedFiles]);
+                  }
+                }}
                 className="p-2 border rounded w-full"
               />
               {newImages.length > 0 && (

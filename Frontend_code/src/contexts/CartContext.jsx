@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 import { logger } from '../utils/logger';
 import { showError, showSuccess } from '../utils/toast';
 
@@ -9,12 +10,25 @@ export function useCart() {
 }
 
 export function CartProvider({ children }) {
+  const { user, isAuthenticated } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load cart from localStorage on mount
+  // Get user-specific cart key
+  const getCartKey = () => {
+    return user ? `cart_${user.id}` : 'cart_guest';
+  };
+
+  // Load cart from localStorage on mount or when user changes
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
+    if (!isAuthenticated) {
+      // For non-authenticated users, show empty cart
+      setCartItems([]);
+      return;
+    }
+
+    const cartKey = getCartKey();
+    const savedCart = localStorage.getItem(cartKey);
     if (savedCart) {
       try {
         setCartItems(JSON.parse(savedCart));
@@ -23,20 +37,30 @@ export function CartProvider({ children }) {
         setCartItems([]);
         showError('Failed to load cart data');
       }
+    } else {
+      setCartItems([]);
     }
-  }, []);
+  }, [user, isAuthenticated]);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     try {
-      localStorage.setItem('cart', JSON.stringify(cartItems));
+      const cartKey = getCartKey();
+      localStorage.setItem(cartKey, JSON.stringify(cartItems));
     } catch (error) {
       logger.error('Error saving cart to localStorage:', error);
       showError('Failed to save cart data');
     }
-  }, [cartItems]);
+  }, [cartItems, user, isAuthenticated]);
 
   const addToCart = (item) => {
+    if (!isAuthenticated) {
+      showError('Please login to add items to cart');
+      return;
+    }
+
     setCartItems(prev => {
       // Check if item already exists in cart
       const existingItemIndex = prev.findIndex(cartItem => 
@@ -63,6 +87,11 @@ export function CartProvider({ children }) {
   };
 
   const removeFromCart = (itemId, size, color) => {
+    if (!isAuthenticated) {
+      showError('Please login to manage cart');
+      return;
+    }
+
     setCartItems(prev => 
       prev.filter(item => 
         !(item.id === itemId && item.size === size && item.color === color)
@@ -72,6 +101,11 @@ export function CartProvider({ children }) {
   };
 
   const updateQuantity = (itemId, size, color, quantity) => {
+    if (!isAuthenticated) {
+      showError('Please login to manage cart');
+      return;
+    }
+
     if (quantity <= 0) {
       removeFromCart(itemId, size, color);
       return;
@@ -87,6 +121,11 @@ export function CartProvider({ children }) {
   };
 
   const updateItemProperty = (itemId, oldSize, color, property, newValue) => {
+    if (!isAuthenticated) {
+      showError('Please login to manage cart');
+      return;
+    }
+
     setCartItems(prev => {
       const itemIndex = prev.findIndex(item => 
         item.id === itemId && item.size === oldSize && item.color === color
@@ -127,11 +166,18 @@ export function CartProvider({ children }) {
   };
 
   const clearCart = () => {
+    if (!isAuthenticated) {
+      showError('Please login to manage cart');
+      return;
+    }
+
     setCartItems([]);
     showSuccess('Cart cleared');
   };
 
   const getCartTotal = () => {
+    if (!isAuthenticated) return 0;
+    
     return cartItems.reduce((total, item) => {
       const price = item.price || 0;
       const quantity = item.quantity || 1;
@@ -140,10 +186,17 @@ export function CartProvider({ children }) {
   };
 
   const getCartCount = () => {
+    if (!isAuthenticated) return 0;
+    
     return cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
   };
 
   const createOrder = async (orderData) => {
+    if (!isAuthenticated) {
+      showError('Please login to create an order');
+      throw new Error('Authentication required');
+    }
+
     setLoading(true);
     try {
       const orderPayload = {
@@ -187,7 +240,7 @@ export function CartProvider({ children }) {
 
   return (
     <CartContext.Provider value={{
-      cartItems,
+      cartItems: isAuthenticated ? cartItems : [],
       addToCart,
       removeFromCart,
       updateQuantity,
@@ -196,7 +249,8 @@ export function CartProvider({ children }) {
       getCartTotal,
       getCartCount,
       createOrder,
-      loading
+      loading,
+      isAuthenticated
     }}>
       {children}
     </CartContext.Provider>

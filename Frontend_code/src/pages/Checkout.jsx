@@ -2,24 +2,56 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FaUser, FaTruck, FaCreditCard, FaLock } from 'react-icons/fa';
+import { FaUser, FaTruck, FaCreditCard, FaLock, FaSignInAlt } from 'react-icons/fa';
 
 export default function Checkout() {
-  const { cartItems, getCartTotal, createOrder } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { cartItems, getCartTotal, createOrder, isAuthenticated } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: Shipping, 2: Payment
   const [formData, setFormData] = useState({
-    fullName: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', country: 'USA',
+    fullName: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', country: 'India',
     cardNumber: '', expiryDate: '', cvv: '', cardName: ''
   });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (!isAuthenticated) navigate('/login');
-    if (cartItems.length === 0) navigate('/cart');
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (cartItems.length === 0) {
+      navigate('/cart');
+      return;
+    }
     if (user) setFormData(prev => ({ ...prev, fullName: user.name, email: user.email }));
   }, [isAuthenticated, cartItems.length, user, navigate]);
+
+  // Show loading or redirect if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔐</div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Authentication Required</h2>
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading or redirect if cart is empty
+  if (cartItems.length === 0) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🛒</div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Cart is Empty</h2>
+          <p className="text-gray-600">Redirecting to cart...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -46,7 +78,12 @@ export default function Checkout() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-6">Checkout</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900">Checkout</h1>
+          <div className="text-sm text-gray-600">
+            Welcome, <span className="font-semibold text-pink-600">{user?.name}</span>!
+          </div>
+        </div>
         
         {/* Progress Bar */}
         <div className="w-full max-w-2xl mx-auto mb-8">
@@ -73,7 +110,12 @@ export default function Checkout() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" className="p-3 border rounded-lg w-full" />
                     <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className="p-3 border rounded-lg w-full" />
-                    {/* Add other shipping fields */}
+                    <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Phone Number" className="p-3 border rounded-lg w-full" />
+                    <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" className="p-3 border rounded-lg w-full" />
+                    <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" className="p-3 border rounded-lg w-full" />
+                    <input name="state" value={formData.state} onChange={handleInputChange} placeholder="State" className="p-3 border rounded-lg w-full" />
+                    <input name="zipCode" value={formData.zipCode} onChange={handleInputChange} placeholder="ZIP Code" className="p-3 border rounded-lg w-full" />
+                    <input name="country" value={formData.country} onChange={handleInputChange} placeholder="Country" className="p-3 border rounded-lg w-full" />
           </div>
                   <button onClick={handleNextStep} type="button" className="w-full mt-6 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg hover:scale-105 transition-transform">
                     Continue to Payment

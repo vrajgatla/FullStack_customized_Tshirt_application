@@ -52,6 +52,16 @@ export default function CustomDesign() {
   // Add modal state and handler
   const [modalImg, setModalImg] = useState(null);
 
+  // Add state for non-uniform scaling
+  const [designWidth, setDesignWidth] = useState(DESIGN_INITIAL_SIZE);
+  const [designHeight, setDesignHeight] = useState(DESIGN_INITIAL_SIZE);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDir, setResizeDir] = useState(null); // 'nw', 'ne', 'sw', 'se'
+  const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
+
+  // Add state for white background removal
+  const [removeWhiteBg, setRemoveWhiteBg] = useState(false);
+
   // Fetch initial data
   useEffect(() => {
     // Fetch genders
@@ -187,6 +197,8 @@ export default function CustomDesign() {
   const resetDesignPosition = () => {
     setDesignPos({ x: PREVIEW_WIDTH / 2, y: PREVIEW_HEIGHT * 0.4 });
     setDesignZoom(1);
+    setDesignWidth(DESIGN_INITIAL_SIZE);
+    setDesignHeight(DESIGN_INITIAL_SIZE);
   };
 
   const handleMouseDown = (e) => {
@@ -202,11 +214,55 @@ export default function CustomDesign() {
       const x = e.clientX - dragStart.x;
       const y = e.clientY - dragStart.y;
       setDesignPos({ x, y });
+    } else if (isResizing && resizeDir) {
+      const dx = e.clientX - resizeStart.current.x;
+      const dy = e.clientY - resizeStart.current.y;
+      let newWidth = resizeStart.current.width;
+      let newHeight = resizeStart.current.height;
+      if (resizeDir === 'se') {
+        newWidth += dx;
+        newHeight += dy;
+      } else if (resizeDir === 'sw') {
+        newWidth -= dx;
+        newHeight += dy;
+      } else if (resizeDir === 'ne') {
+        newWidth += dx;
+        newHeight -= dy;
+      } else if (resizeDir === 'nw') {
+        newWidth -= dx;
+        newHeight -= dy;
+      }
+      setDesignWidth(Math.max(30, newWidth));
+      setDesignHeight(Math.max(30, newHeight));
     }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setIsResizing(false);
+    setResizeDir(null);
+  };
+
+  // Attach mousemove/mouseup listeners
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  });
+
+  const handleResizeMouseDown = (e, dir) => {
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeDir(dir);
+    resizeStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: designWidth,
+      height: designHeight,
+    };
   };
 
   const generateFinalImage = async () => {
@@ -242,28 +298,30 @@ export default function CustomDesign() {
       designImage.src = designUrl;
       await designImage.decode();
       
-      const designSize = DESIGN_INITIAL_SIZE * designZoom;
-  
-      // Maintain aspect ratio of the design image
-      const imgRatio = designImage.width / designImage.height;
-      let drawW = designSize;
-      let drawH = designSize;
-  
-      if (imgRatio > 1) {
-        // Wider than tall
-        drawH = designSize / imgRatio;
-      } else {
-        // Taller than wide or square
-        drawW = designSize * imgRatio;
-      }
-  
+      const drawW = designWidth * designZoom;
+      const drawH = designHeight * designZoom;
       const adjustedX = designPos.x - drawW / 2;
       const adjustedY = designPos.y - drawH / 2;
       
       ctx.drawImage(designImage, adjustedX, adjustedY, drawW, drawH);
+
+      // If removeWhiteBg is true, process the design area to remove white pixels
+      if (removeWhiteBg && designUrl) {
+        // Get the design area
+        const imageData = ctx.getImageData(adjustedX, adjustedY, drawW, drawH);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          // If pixel is close to white, make it transparent
+          if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) {
+            data[i+3] = 0;
+          }
+        }
+        ctx.putImageData(imageData, adjustedX, adjustedY);
+      }
     }
   
-    return canvas.toDataURL('image/png');
+    // Ensure PNG format to preserve transparency
+    return canvas.toDataURL('image/png', 1.0);
   };
 
   const handleAddToCart = async () => {
@@ -384,29 +442,67 @@ export default function CustomDesign() {
   return (
     <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
       {/* LEFT - PREVIEW */}
-      <div className="bg-gray-100 rounded-2xl shadow-inner p-4 flex flex-col items-center justify-center sticky top-24 h-[600px]">
+      <div className="bg-gray-100 rounded-2xl shadow-inner p-4 flex flex-col items-center justify-center lg:sticky lg:top-24 h-auto min-h-[500px] lg:h-[600px] overflow-hidden">
         <div 
           ref={previewRef}
           className="relative overflow-hidden" 
-          style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT }}
+          style={{ 
+            width: Math.min(PREVIEW_WIDTH, window.innerWidth - 64), 
+            height: Math.min(PREVIEW_HEIGHT, window.innerHeight * 0.6),
+            maxWidth: '100%',
+            maxHeight: '100%'
+          }}
         >
           <img src={tshirtImg} alt="T-shirt preview" className="w-full h-full object-contain" />
           {(selectedDesign || uploadedDesign) && (
             <div
-              className="absolute cursor-grab active:cursor-grabbing"
+              className="absolute cursor-grab active:cursor-grabbing group touch-none"
               style={{
                 top: designPos.y,
                 left: designPos.x,
-                width: `${DESIGN_INITIAL_SIZE * designZoom}px`,
-                height: `${DESIGN_INITIAL_SIZE * designZoom}px`,
+                width: `${designWidth * designZoom}px`,
+                height: `${designHeight * designZoom}px`,
                 transform: 'translate(-50%, -50%)',
                 backgroundImage: `url(${uploadedDesign || selectedDesign.imageUrl})`,
-                backgroundSize: 'contain',
+                backgroundSize: '100% 100%',
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center',
+                zIndex: 2,
               }}
               onMouseDown={handleMouseDown}
-            />
+              onTouchStart={(e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                setDragStart({ x: touch.clientX - designPos.x, y: touch.clientY - designPos.y });
+                setIsDragging(true);
+              }}
+              onTouchMove={(e) => {
+                e.preventDefault();
+                if (isDragging) {
+                  const touch = e.touches[0];
+                  setDesignPos({
+                    x: touch.clientX - dragStart.x,
+                    y: touch.clientY - dragStart.y
+                  });
+                }
+              }}
+              onTouchEnd={() => setIsDragging(false)}
+            >
+              {/* Resize handles */}
+              {['nw','ne','sw','se'].map(dir => (
+                <div
+                  key={dir}
+                  onMouseDown={e => handleResizeMouseDown(e, dir)}
+                  className={`absolute w-3 h-3 bg-white border-2 border-pink-500 rounded-full z-10 cursor-${dir}-resize opacity-80 group-hover:opacity-100 touch-none`}
+                  style={{
+                    top: dir[0] === 'n' ? -6 : undefined,
+                    bottom: dir[0] === 's' ? -6 : undefined,
+                    left: dir[1] === 'w' ? -6 : undefined,
+                    right: dir[1] === 'e' ? -6 : undefined,
+                  }}
+                />
+              ))}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-4 mt-4 bg-white p-2 rounded-full shadow">
@@ -544,6 +640,17 @@ export default function CustomDesign() {
 
         {/* Add a button to save the current view */}
         <button onClick={handleSaveView} className="w-full bg-green-600 text-white font-bold py-2 rounded-lg mt-4">Save This View</button>
+
+        {/* In the UI, add a toggle for removing white background */}
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            type="checkbox"
+            id="remove-white-bg"
+            checked={removeWhiteBg}
+            onChange={e => setRemoveWhiteBg(e.target.checked)}
+          />
+          <label htmlFor="remove-white-bg" className="text-sm text-gray-700">Remove white background from design (PNG only)</label>
+        </div>
       </div>
     </div>
   );

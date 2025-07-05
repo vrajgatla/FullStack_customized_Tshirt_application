@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import apiService from '../utils/api';
 import { FaSearch, FaFilter, FaSort, FaCalendarAlt, FaPalette } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
+import { compressImagePreservingTransparency } from '../utils/imageCompression';
 
 export default function ManageTshirts() {
   const { user, token } = useAuth();
@@ -643,12 +644,27 @@ export default function ManageTshirts() {
                 </div>
               )}
               <label className="block font-semibold mb-1 mt-2">Add More Images</label>
-              <input type="file" accept="image/*" multiple onChange={e => {
+              <input type="file" accept="image/*" multiple onChange={async (e) => {
+                if (e.target.files && e.target.files.length > 0) {
                 const files = Array.from(e.target.files);
+                  
+                  // Compress images while preserving transparency
+                  const compressedFiles = [];
+                  for (const file of files) {
+                    try {
+                      const compressedFile = await compressImagePreservingTransparency(file);
+                      compressedFiles.push(compressedFile);
+                    } catch (error) {
+                      console.error('Failed to compress image:', error);
+                      compressedFiles.push(file); // Use original if compression fails
+                    }
+                  }
+                  
                 setForm(f => ({
                   ...f,
-                  newImages: [...(f.newImages || []), ...files],
+                    newImages: [...(f.newImages || []), ...compressedFiles],
                 }));
+                }
               }} className="p-2 border rounded w-full" />
             </div>
             <button type="submit" disabled={loading} className={`px-6 py-2 rounded font-bold w-full ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import ProductCard from '../Components/ProductCard';
@@ -9,7 +9,8 @@ import FeaturedProductsCarousel from '../pages/Home/components/FeaturedProductsC
 
 export default function DesignedTshirtDetail() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const { addToCart } = useCart();
   const [designedTshirt, setDesignedTshirt] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,8 +56,29 @@ export default function DesignedTshirtDetail() {
   }, []);
 
   const handleAddToCart = () => {
-    // Add to cart logic here
-    console.log('Added to cart:', { id, selectedSize, quantity });
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    if (!selectedSize) {
+      alert('Please select a size');
+      return;
+    }
+
+    const cartItem = {
+      id: designedTshirt.id,
+      name: designedTshirt.name,
+      price: designedTshirt.price,
+      image: mainImage,
+      brand: designedTshirt.tshirt?.brand?.name || 'TrendTee',
+      size: selectedSize,
+      color: 'White', // Default color
+      quantity: quantity,
+      designId: designedTshirt.design?.id
+    };
+
+    addToCart(cartItem);
   };
 
   const availableSizes = designedTshirt?.tshirt?.sizes || ['S', 'M', 'L', 'XL', 'XXL'];
@@ -173,7 +195,7 @@ export default function DesignedTshirtDetail() {
         </div>
         {/* SizeChart: Mobile only, before You Might Also Like */}
         <div className="block md:hidden mt-4 mb-8 px-4">
-          <SizeChart />
+          <SizeChart compact={true} />
         </div>
         {/* You Might Also Like (Trending Now) */}
         <div className="mt-20">

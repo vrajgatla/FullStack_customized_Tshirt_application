@@ -1,12 +1,15 @@
 import imageCompression from 'browser-image-compression';
 
 export const compressImage = async (file, options = {}) => {
+  // Detect if the file is PNG to preserve transparency
+  const isPng = file.type === 'image/png';
+  
   const defaultOptions = {
     maxSizeMB: 0.5, // 500KB
     maxWidthOrHeight: 1200,
     useWebWorker: true,
-    fileType: 'image/jpeg',
-    quality: 0.8,
+    fileType: isPng ? 'image/png' : 'image/jpeg', // Preserve PNG format for transparency
+    quality: isPng ? 0.9 : 0.8, // Higher quality for PNG to preserve transparency
     ...options
   };
 
@@ -20,12 +23,15 @@ export const compressImage = async (file, options = {}) => {
 };
 
 export const generateThumbnail = async (file, maxWidth = 200) => {
+  // Detect if the file is PNG to preserve transparency
+  const isPng = file.type === 'image/png';
+  
   const options = {
     maxSizeMB: 0.1, // 100KB
     maxWidthOrHeight: maxWidth,
     useWebWorker: true,
-    fileType: 'image/jpeg',
-    quality: 0.7,
+    fileType: isPng ? 'image/png' : 'image/jpeg', // Preserve PNG format for transparency
+    quality: isPng ? 0.9 : 0.7, // Higher quality for PNG to preserve transparency
   };
 
   try {
@@ -112,4 +118,63 @@ export const convertToDataURL = (file) => {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+};
+
+// Utility function to detect if an image has transparency
+export const hasTransparency = (file) => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] < 255) { // Alpha channel less than 255 means transparency
+          resolve(true);
+          return;
+        }
+      }
+      resolve(false);
+    };
+    
+    img.onerror = () => resolve(false);
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+// Utility function to preserve transparency when compressing
+export const compressImagePreservingTransparency = async (file, options = {}) => {
+  const hasTransparentPixels = await hasTransparency(file);
+  
+  if (hasTransparentPixels && file.type !== 'image/png') {
+    // If image has transparency but isn't PNG, convert to PNG
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    return new Promise((resolve) => {
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          const pngFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.png'), {
+            type: 'image/png'
+          });
+          resolve(compressImage(pngFile, options));
+        }, 'image/png');
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  
+  return compressImage(file, options);
 }; 
